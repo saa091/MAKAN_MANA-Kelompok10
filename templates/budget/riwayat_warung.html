@@ -1,0 +1,285 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Riwayat & Analitik — MakanMana{% endblock %}
+{% block page_title %}Riwayat & Analitik{% endblock %}
+{% block page_subtitle %}Pantau performa warungmu{% endblock %}
+
+{% block extra_css %}
+<style>
+.stat-card { border-radius: 16px !important; }
+.stat-card .stat-label { font-size: 0.8rem; color: #8a94a6; }
+.stat-card .stat-val { font-size: 1.6rem; font-weight: 700; color: #1e2d3d; }
+
+/* Filter periode */
+.rentang-btn {
+    font-size: 0.82rem;
+    padding: 5px 18px;
+    border-radius: 99px;
+    font-weight: 600;
+    transition: 0.15s;
+    border: 1.5px solid #e5e7eb;
+    color: #374151;
+    background: #fff;
+}
+.rentang-btn:hover { background: #f0fdfa; border-color: #00ced1; color: #00ced1; }
+.rentang-btn.aktif {
+    background: #00ced1;
+    border-color: #00ced1;
+    color: #fff;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Tombol kembali -->
+<div class="mb-3">
+    <a href="{% url 'budget:manage_menu' %}" class="btn btn-outline-secondary rounded-pill btn-sm">
+        <i class="bi bi-arrow-left me-1"></i>Kembali ke Katalog
+    </a>
+</div>
+
+<!-- ===== Filter Rentang Waktu ===== -->
+<div class="d-flex gap-2 mb-4 flex-wrap align-items-center">
+    <span class="text-muted small fw-semibold me-1">Periode:</span>
+    <a href="?rentang=1"
+       class="rentang-btn {% if rentang == '1' %}aktif{% endif %}">
+        Hari Ini
+    </a>
+    <a href="?rentang=7"
+       class="rentang-btn {% if rentang == '7' or not rentang %}aktif{% endif %}">
+        7 Hari
+    </a>
+    <a href="?rentang=30"
+       class="rentang-btn {% if rentang == '30' %}aktif{% endif %}">
+        30 Hari
+    </a>
+    <a href="?rentang=90"
+       class="rentang-btn {% if rentang == '90' %}aktif{% endif %}">
+        3 Bulan
+    </a>
+
+    <!-- Custom range -->
+    <div class="d-flex align-items-center gap-2 ms-2" id="customWrap">
+        <span class="text-muted small">atau</span>
+        <form method="GET" class="d-flex align-items-center gap-1">
+            <input type="number" name="rentang" id="customHari"
+                   class="form-control form-control-sm rounded-pill text-center"
+                   style="width:70px;"
+                   placeholder="hari" min="1" max="365"
+                   value="{% if rentang and rentang != '1' and rentang != '7' and rentang != '30' and rentang != '90' %}{{ rentang }}{% endif %}">
+            <button type="submit"
+                    class="btn btn-sm rounded-pill"
+                    style="background:#00ced1; color:#fff; border:none;">
+                Terapkan
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- Info rentang aktif -->
+<p class="text-muted small mb-4">
+    <i class="bi bi-calendar-range me-1"></i>
+    Menampilkan data
+    {% if rentang == '1' %}hari ini
+    {% elif rentang == '7' %}7 hari terakhir
+    {% elif rentang == '30' %}30 hari terakhir
+    {% elif rentang == '90' %}3 bulan terakhir
+    {% else %}{{ rentang }} hari terakhir{% endif %}
+    ({{ tgl_mulai|date:"d M Y" }} — hari ini)
+</p>
+
+<!-- ===== Stat Cards ===== -->
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm stat-card p-4">
+            <div class="d-flex align-items-center gap-3">
+                <div class="rounded-3 p-3" style="background:#e0f7fa;">
+                    <i class="bi bi-cash-stack text-info fs-4"></i>
+                </div>
+                <div>
+                    <div class="stat-label">Total Pendapatan</div>
+                    <div class="stat-val">Rp {{ total_pendapatan|floatformat:0|intcomma }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm stat-card p-4">
+            <div class="d-flex align-items-center gap-3">
+                <div class="rounded-3 p-3" style="background:#e8f5e9;">
+                    <i class="bi bi-bag-check text-success fs-4"></i>
+                </div>
+                <div>
+                    <div class="stat-label">Pesanan Selesai</div>
+                    <div class="stat-val">{{ total_pesanan }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm stat-card p-4">
+            <div class="d-flex align-items-center gap-3">
+                <div class="rounded-3 p-3" style="background:#f3e5f5;">
+                    <i class="bi bi-graph-up fs-4" style="color:#9c27b0;"></i>
+                </div>
+                <div>
+                    <div class="stat-label">Rata-rata per Pesanan</div>
+                    <div class="stat-val">Rp {{ rata_per_pesanan|floatformat:0|intcomma }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== Grafik Pendapatan Harian ===== -->
+<div class="card border-0 shadow-sm mb-4" style="border-radius:16px;">
+    <div class="card-body p-4">
+        <h6 class="fw-semibold text-dark mb-3">
+            <i class="bi bi-bar-chart-line me-2 text-info"></i>Pendapatan Harian
+        </h6>
+        {% if total_pesanan == 0 %}
+        <div class="text-center py-4 text-muted">
+            <i class="bi bi-bar-chart d-block fs-3 mb-2"></i>
+            <p class="small mb-0">Belum ada data dalam periode ini.</p>
+        </div>
+        {% else %}
+        <canvas id="grafikPendapatan" height="80"></canvas>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Menu Terlaris -->
+    <div class="col-md-5">
+        <div class="card border-0 shadow-sm h-100" style="border-radius:16px;">
+            <div class="card-body p-4">
+                <h6 class="fw-semibold text-dark mb-3">
+                    <i class="bi bi-fire text-danger me-2"></i>Menu Terlaris Periode Ini
+                </h6>
+                {% for menu in menu_terlaris %}
+                <div class="d-flex align-items-center py-2 {% if not forloop.last %}border-bottom{% endif %}">
+                    <span class="badge me-3 fw-bold"
+                          style="background:#e0f7fa; color:#0369a1; min-width:24px;">
+                        {{ forloop.counter }}
+                    </span>
+                    <div class="flex-grow-1">
+                        <div class="small fw-semibold">{{ menu.menu__nama_makanan }}</div>
+                        <small class="text-muted">{{ menu.total_terjual }}x terjual</small>
+                    </div>
+                    <span class="small fw-semibold text-dark">
+                        Rp {{ menu.total_pendapatan|floatformat:0|intcomma }}
+                    </span>
+                </div>
+                {% empty %}
+                <div class="text-center py-4 text-muted">
+                    <i class="bi bi-inbox d-block fs-3 mb-2"></i>
+                    <p class="small mb-0">Belum ada data menu.</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabel Riwayat Pesanan -->
+    <div class="col-md-7">
+        <div class="card border-0 shadow-sm" style="border-radius:16px;">
+            <div class="card-body p-4">
+                <h6 class="fw-semibold text-dark mb-3">
+                    <i class="bi bi-clock-history me-2 text-secondary"></i>Riwayat Pesanan Selesai
+                </h6>
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead class="bg-light small text-uppercase text-muted"
+                               style="font-size:0.7rem;">
+                            <tr>
+                                <th class="ps-2">Order</th>
+                                <th>Pembeli</th>
+                                <th>Item</th>
+                                <th>Total</th>
+                                <th>Selesai</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for p in riwayat_pesanan %}
+                            <tr>
+                                <td class="ps-2 fw-semibold small">#{{ p.id }}</td>
+                                <td class="small">{{ p.mahasiswa.username }}</td>
+                                <td class="text-muted small">
+                                    {% for item in p.items.all %}
+                                        {{ item.jumlah }}x {{ item.menu.nama_makanan }}{% if not forloop.last %}, {% endif %}
+                                    {% endfor %}
+                                </td>
+                                <td class="fw-semibold small">
+                                    Rp {{ p.total_harga|floatformat:0|intcomma }}
+                                </td>
+                                <td class="text-muted small">
+                                    {{ p.waktu_selesai|date:"d M, H:i" }}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-5">
+                                    <i class="bi bi-inbox fs-3 d-block mb-2"></i>
+                                    Belum ada pesanan selesai dalam periode ini.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+{% if total_pesanan > 0 %}
+(function () {
+    const rawData = {{ grafik_json|safe }};
+    const ctx = document.getElementById('grafikPendapatan').getContext('2d');
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: rawData.map(d => d.tgl),
+            datasets: [{
+                label: 'Pendapatan (Rp)',
+                data: rawData.map(d => d.pendapatan),
+                backgroundColor: 'rgba(0, 206, 209, 0.45)',
+                borderColor: 'rgba(0, 206, 209, 1)',
+                borderWidth: 2,
+                borderRadius: 6,
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(ctx) {
+                            return ' Rp ' + ctx.parsed.y.toLocaleString('id-ID');
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(val) {
+                            return 'Rp ' + val.toLocaleString('id-ID');
+                        }
+                    }
+                }
+            }
+        }
+    });
+})();
+{% endif %}
+</script>
+{% endblock %}

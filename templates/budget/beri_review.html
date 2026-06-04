@@ -1,0 +1,83 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Beri Review — MakanMana{% endblock %}
+{% block page_title %}Beri Ulasan{% endblock %}
+{% block page_subtitle %}Bagikan pengalamanmu ke sesama mahasiswa{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-7">
+        <div class="card border-0 shadow-sm p-4" style="border-radius:16px;">
+            <h5 class="fw-bold mb-1">Review Pesanan #{{ pesanan.id }}</h5>
+            <p class="text-muted small mb-4">{{ pesanan.warung.nama_kantin }} · {{ pesanan.waktu_selesai|date:"d M Y" }}</p>
+
+            <form method="POST">
+                {% csrf_token %}
+                {% for item in items %}
+                <div class="border rounded-3 p-4 mb-3" style="background:#fafafa;">
+                    <div class="d-flex align-items-center gap-3 mb-3">
+                        {% if item.menu.gambar %}
+                            <img src="{{ item.menu.gambar.url }}" class="rounded-3" width="60" height="60" style="object-fit:cover;">
+                        {% endif %}
+                        <div>
+                            <h6 class="fw-bold mb-0">{{ item.menu.nama_makanan }}</h6>
+                            <small class="text-muted">{{ item.jumlah }}x · Rp {{ item.harga_saat_pesan|intcomma }}</small>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Rating</label>
+                        <div class="d-flex gap-2" id="stars-{{ item.menu.id }}">
+                            {% for i in "12345" %}
+                            <label class="star-label" style="cursor:pointer; font-size:1.8rem; color:#ddd;" data-val="{{ forloop.counter }}">
+                                ★
+                                <input type="radio" name="bintang_{{ item.menu.id }}" value="{{ forloop.counter }}" style="display:none;" required>
+                            </label>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="mb-2">
+                        <label class="form-label small fw-bold">Komentar</label>
+                        <textarea name="komentar_{{ item.menu.id }}" class="form-control rounded-3 bg-white" rows="2"
+                                  placeholder="Ceritakan pengalamanmu..."></textarea>
+                    </div>
+                </div>
+                {% endfor %}
+
+                <div class="d-flex gap-2 mt-4">
+                    <button type="submit" class="btn fw-bold rounded-pill px-4 text-white flex-grow-1"
+                            style="background:#00ced1;">
+                        <i class="bi bi-send me-2"></i>Kirim Review
+                    </button>
+                    <a href="{% url 'budget:riwayat' %}" class="btn btn-outline-secondary rounded-pill px-4">Lewati</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.querySelectorAll('[id^="stars-"]').forEach(container => {
+    const labels = container.querySelectorAll('.star-label');
+    labels.forEach((lbl, idx) => {
+        lbl.addEventListener('mouseover', () => {
+            labels.forEach((l, i) => l.style.color = i <= idx ? '#ffc107' : '#ddd');
+        });
+        lbl.addEventListener('mouseout', () => {
+            const checked = container.querySelector('input:checked');
+            const val = checked ? parseInt(checked.value) : 0;
+            labels.forEach((l, i) => l.style.color = i < val ? '#ffc107' : '#ddd');
+        });
+        lbl.addEventListener('click', () => {
+            lbl.querySelector('input').checked = true;
+            const val = idx + 1;
+            labels.forEach((l, i) => l.style.color = i < val ? '#ffc107' : '#ddd');
+        });
+    });
+});
+</script>
+{% endblock %}

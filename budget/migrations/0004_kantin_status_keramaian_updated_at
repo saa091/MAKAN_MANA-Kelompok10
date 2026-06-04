@@ -1,0 +1,143 @@
+from django.db import models
+from django.contrib.auth.models import User
+
+# 1. EXTEND USER UNTUK ROLE SYSTEM
+class Profile(models.Model):
+    ROLE_CHOICES = [
+        ('mahasiswa', 'Mahasiswa'),
+        ('pemilik', 'Pemilik Warung'),
+        ('admin', 'Admin Kampus'),
+    ]
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='mahasiswa')
+    foto_profil = models.ImageField(upload_to='profile_pics/', null=True, blank=True)
+    bio = models.TextField(blank=True)
+    no_hp = models.CharField(max_length=20, blank=True)
+
+    def __str__(self):
+        return f"{self.user.username} - {self.role}"
+
+# 2. TABEL KANTIN
+class Kantin(models.Model):
+    STATUS_KERAMAIAN = [('Sepi', 'Sepi'), ('Normal', 'Normal'), ('Ramai', 'Ramai')]
+    nama_kantin = models.CharField(max_length=100)
+    lokasi = models.CharField(max_length=200)
+    jam_buka = models.CharField(max_length=50, blank=True)
+    status_keramaian = models.CharField(max_length=10, choices=STATUS_KERAMAIAN, default='Normal')
+    status_keramaian_updated_at = models.DateTimeField(null=True, blank=True)
+    foto_warung = models.ImageField(upload_to='warung_images/', null=True, blank=True)
+    pemilik = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='warung')
+    deskripsi = models.TextField(blank=True)
+
+    class Meta:
+        verbose_name_plural = "Kantin"
+
+    def __str__(self):
+        return self.nama_kantin
+
+# 3. TABEL MENU
+class Menu(models.Model):
+    kantin = models.ForeignKey(Kantin, on_delete=models.CASCADE, related_name='menus')
+    nama_makanan = models.CharField(max_length=100)
+    harga = models.IntegerField()
+    gambar = models.ImageField(upload_to='menu_images/', null=True, blank=True)
+    deskripsi = models.TextField(blank=True)
+    label = models.CharField(max_length=50, blank=True, help_text="Contoh: Halal, Pedas")
+    stok_tersedia = models.BooleanField(default=True)
+    jumlah_terjual = models.IntegerField(default=0)
+
+    class Meta:
+        verbose_name_plural = "Menu"
+
+    def __str__(self):
+        return self.nama_makanan
+
+    def avg_rating(self):
+        reviews = self.reviews.all()
+        if reviews.exists():
+            return round(sum(r.bintang for r in reviews) / reviews.count(), 1)
+        return 0
+
+# 4. TABEL BUDGET
+class Budget(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='budget')
+    saldo = models.IntegerField(default=0)
+    tanggal_update = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Saldo {self.user.username}: Rp {self.saldo}"
+
+# 5. KERANJANG BELANJA
+class KeranjangItem(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='keranjang')
+    menu = models.ForeignKey(Menu, on_delete=models.CASCADE)
+    jumlah = models.IntegerField(default=1)
+    catatan_item = models.TextField(blank=True)
+    ditambahkan = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user', 'menu')
+
+    def subtotal(self):
+        return self.menu.harga * self.jumlah
+
+# 6. PRE-ORDER SYSTEM
+class Pesanan(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('diproses', 'Diproses'),
+        ('siap', 'Siap Diambil'),
+        ('selesai', 'Selesai'),
+        ('dibatalkan', 'Dibatalkan'),
+    ]
+    mahasiswa = models.ForeignKey(User, on_delete=models.CASCADE, related_name='pesanan_saya')
+    warung = models.ForeignKey(Kantin, on_delete=models.CASCADE)
+    total_harga = models.IntegerField()
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    catatan = models.TextField(blank=True)
+    waktu_pesan = models.DateTimeField(auto_now_add=True)
+    waktu_selesai = models.DateTimeField(null=True, blank=True)
+    sudah_direview = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"Order #{self.id} - {self.mahasiswa.username}"
+
+# 7. DETAIL ITEM PESANAN
+class ItemPesanan(models.Model):
+    pesanan = models.ForeignKey(Pesanan, on_delete=models.CASCADE, related_name='items')
+    menu = models.ForeignKey(Menu, on_delete=models.CASCADE)
+    jumlah = models.IntegerField(default=1)
+    harga_saat_pesan = models.IntegerField()
+    catatan_item = models.TextField(blank=True)
+
+# 8. RATING & REVIEW
+class ReviewMenu(models.Model):
+    mahasiswa = models.ForeignKey(User, on_delete=models.CASCADE)
+    menu = models.ForeignKey(Menu, on_delete=models.CASCADE, related_name='reviews')
+    pesanan = models.ForeignKey(Pesanan, on_delete=models.SET_NULL, null=True, blank=True)
+    bintang = models.IntegerField(choices=[(i, i) for i in range(1, 6)])
+    komentar = models.TextField()
+    waktu_review = models.DateTimeField(auto_now_add=True)
+    dilaporkan = models.BooleanField(default=False)
+
+    class Meta:
+        unique_together = ('mahasiswa', 'menu', 'pesanan')
+
+# 9. SISTEM NOTIFIKASI
+class Notifikasi(models.Model):
+    TIPE_CHOICES = [
+        ('pesanan', 'Pesanan'),
+        ('budget', 'Budget'),
+        ('review', 'Review'),
+        ('sistem', 'Sistem'),
+    ]
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifikasi')
+    judul = models.CharField(max_length=100)
+    pesan = models.TextField()
+    tipe = models.CharField(max_length=20, choices=TIPE_CHOICES, default='sistem')
+    sudah_dibaca = models.BooleanField(default=False)
+    waktu_kirim = models.DateTimeField(auto_now_add=True)
+    link = models.CharField(max_length=200, blank=True)
+
+    class Meta:
+        ordering = ['-waktu_kirim']

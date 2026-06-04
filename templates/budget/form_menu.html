@@ -1,0 +1,346 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}{{ title }} — MakanMana{% endblock %}
+{% block page_title %}{{ title }}{% endblock %}
+{% block page_subtitle %}{% if warung %}{{ warung.nama_kantin }}{% elif menu %}{{ menu.kantin.nama_kantin }}{% endif %}{% endblock %}
+
+{% block extra_css %}
+<style>
+.form-control, .form-select {
+    border: 1px solid #e5e7eb !important;
+    background: #f9fafb !important;
+}
+.form-control:focus, .form-select:focus {
+    background: #fff !important;
+    border-color: #00ced1 !important;
+    box-shadow: 0 0 0 3px rgba(0,206,209,0.12) !important;
+}
+
+/* Validasi error */
+.form-control.is-invalid, .form-select.is-invalid {
+    border-color: #ef4444 !important;
+    background-color: #fff5f5 !important;
+}
+.invalid-msg {
+    font-size: 0.76rem;
+    color: #dc2626;
+    margin-top: 4px;
+    display: none;
+    align-items: center;
+    gap: 4px;
+}
+.invalid-msg.show { display: flex; }
+
+/* Foto preview */
+.foto-wrapper {
+    width: 100%;
+    height: 220px;
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+    background: #f3f4f6;
+    cursor: zoom-in;
+}
+.foto-wrapper img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    display: block;
+    transition: transform 0.3s ease;
+}
+.foto-wrapper:hover img { transform: scale(1.03); }
+
+/* Modal lightbox */
+.foto-modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    z-index: 9999;
+    align-items: center;
+    justify-content: center;
+    cursor: zoom-out;
+}
+.foto-modal-overlay.active { display: flex; }
+.foto-modal-overlay img {
+    max-width: 92vw;
+    max-height: 88vh;
+    object-fit: contain;
+    border-radius: 12px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+}
+.foto-modal-close {
+    position: fixed; top: 18px; right: 22px;
+    color: #fff; font-size: 2rem; cursor: pointer;
+    background: rgba(0,0,0,0.4); border-radius: 50%;
+    width: 40px; height: 40px;
+    display: flex; align-items: center; justify-content: center;
+    z-index: 10000;
+}
+.foto-hint {
+    position: absolute; bottom: 8px; right: 10px;
+    background: rgba(0,0,0,0.45); color: #fff;
+    font-size: 0.7rem; padding: 2px 8px; border-radius: 20px;
+    pointer-events: none;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-7">
+        <div class="card border-0 shadow-sm" style="border-radius:16px;">
+            <div class="card-body p-4 p-md-5">
+
+                {% if menu and menu.gambar %}
+                <div class="mb-4">
+                    <div class="foto-wrapper" id="fotoWrapper" onclick="openModal(this)">
+                        <img src="{{ menu.gambar.url }}" id="imgPreview" alt="Foto Menu">
+                        <span class="foto-hint">🔍 Klik untuk lihat full</span>
+                    </div>
+                </div>
+                {% else %}
+                <div id="imgPreviewWrap" class="mb-4 d-none">
+                    <div class="foto-wrapper" id="fotoWrapper" onclick="openModal(this)">
+                        <img src="" id="imgPreview" alt="Foto Menu">
+                        <span class="foto-hint">🔍 Klik untuk lihat full</span>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Lightbox Modal -->
+                <div class="foto-modal-overlay" id="fotoModal" onclick="closeModal()">
+                    <span class="foto-modal-close" onclick="closeModal()">✕</span>
+                    <img src="" id="modalImg" alt="Preview Full">
+                </div>
+
+                {# Tampilkan error dari Django (server-side) jika ada #}
+                {% if messages %}
+                <div class="mb-3">
+                    {% for msg in messages %}
+                    <div class="alert alert-{{ msg.tags|default:'danger' }} rounded-3 small py-2">
+                        {{ msg }}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                <form method="POST" enctype="multipart/form-data" id="formMenu" novalidate>
+                    {% csrf_token %}
+
+                    <!-- Nama Menu -->
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold small">
+                            Nama Menu <span class="text-danger">*</span>
+                        </label>
+                        <input type="text" name="nama_makanan" id="fieldNama"
+                               class="form-control rounded-3"
+                               value="{{ menu.nama_makanan|default:'' }}"
+                               placeholder="Contoh: Ayam Geprek Spesial"
+                               maxlength="100">
+                        <div class="invalid-msg" id="errNama">
+                            <i class="bi bi-exclamation-circle-fill"></i> Nama menu wajib diisi.
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <!-- Harga -->
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold small">
+                                Harga (Rp) <span class="text-danger">*</span>
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light border-0 rounded-start-3 fw-semibold">Rp</span>
+                                <input type="number" name="harga" id="fieldHarga"
+                                       class="form-control rounded-end-3"
+                                       value="{{ menu.harga|default:'' }}"
+                                       placeholder="12000" min="0">
+                            </div>
+                            <small class="text-muted">Tanpa titik, misal: 12000</small>
+                            <div class="invalid-msg" id="errHarga">
+                                <i class="bi bi-exclamation-circle-fill"></i> Harga wajib diisi dan lebih dari 0.
+                            </div>
+                        </div>
+
+                        <!-- Kategori -->
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold small">
+                                Kategori <span class="text-danger">*</span>
+                            </label>
+                            <select name="kategori" id="fieldKategori" class="form-select rounded-3">
+                                <option value="makanan" {% if menu.kategori == 'makanan' or not menu %}selected{% endif %}>🍽️ Makanan</option>
+                                <option value="minuman" {% if menu.kategori == 'minuman' %}selected{% endif %}>🥤 Minuman</option>
+                                <option value="snack"   {% if menu.kategori == 'snack' %}selected{% endif %}>🍿 Snack</option>
+                                <option value="paket"   {% if menu.kategori == 'paket' %}selected{% endif %}>📦 Paket</option>
+                                <option value="lainnya" {% if menu.kategori == 'lainnya' %}selected{% endif %}>🔖 Lainnya</option>
+                            </select>
+                        </div>
+
+                        <!-- Label -->
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold small">Label</label>
+                            <input type="text" name="label"
+                                   class="form-control rounded-3"
+                                   value="{{ menu.label|default:'' }}"
+                                   placeholder="Pedas, Halal, Gurih...">
+                            <small class="text-muted">Pisahkan dengan koma</small>
+                        </div>
+                    </div>
+
+                    <!-- Deskripsi -->
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold small">Deskripsi</label>
+                        <textarea name="deskripsi" class="form-control rounded-3" rows="3"
+                                  placeholder="Ceritakan bahan, rasa, atau keistimewaan menu ini...">{{ menu.deskripsi|default:'' }}</textarea>
+                    </div>
+
+                    <!-- Foto Menu -->
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold small">Foto Menu</label>
+                        <input type="file" name="gambar" id="fotoInput"
+                               class="form-control rounded-3" accept="image/*">
+                        <div class="invalid-msg" id="errFoto">
+                            <i class="bi bi-exclamation-circle-fill"></i> Format file harus berupa gambar (JPG/PNG/WEBP).
+                        </div>
+                        {% if menu and menu.gambar %}
+                        <small class="text-muted">Upload baru untuk mengganti foto yang ada.</small>
+                        {% endif %}
+                    </div>
+
+                    <!-- Toggle Stok (edit mode) -->
+                    {% if menu %}
+                    <div class="mb-4 p-3 rounded-3" style="background:#f0fdf4;">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" name="stok_tersedia"
+                                   id="stokSwitch" {% if menu.stok_tersedia %}checked{% endif %}
+                                   style="width:2.5em; height:1.3em; cursor:pointer;">
+                            <label class="form-check-label ms-2 fw-semibold small" for="stokSwitch">
+                                Stok Tersedia
+                            </label>
+                        </div>
+                        <small class="text-muted">Nonaktifkan jika menu sedang habis</small>
+                    </div>
+                    {% endif %}
+
+                    <div class="d-flex gap-2 mt-4">
+                        <button type="submit" id="btnSimpan"
+                                class="btn fw-bold rounded-pill px-4 text-white flex-grow-1"
+                                style="background:#00ced1; border:none; padding-top:10px; padding-bottom:10px;">
+                            <i class="bi bi-check2 me-2"></i>Simpan
+                        </button>
+                        <a href="{% url 'budget:manage_menu' %}"
+                           class="btn btn-outline-secondary rounded-pill px-4">
+                            Batal
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// ===== Preview foto sebelum upload =====
+document.getElementById('fotoInput').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    const errFoto = document.getElementById('errFoto');
+    if (!file) return;
+
+    // Validasi tipe file
+    if (!file.type.startsWith('image/')) {
+        document.getElementById('fotoInput').classList.add('is-invalid');
+        errFoto.classList.add('show');
+        return;
+    }
+    document.getElementById('fotoInput').classList.remove('is-invalid');
+    errFoto.classList.remove('show');
+
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+        const img = document.getElementById('imgPreview');
+        const wrap = document.getElementById('imgPreviewWrap');
+        img.src = ev.target.result;
+        if (wrap) wrap.classList.remove('d-none');
+    };
+    reader.readAsDataURL(file);
+});
+
+// ===== Validasi form sebelum submit =====
+document.getElementById('formMenu').addEventListener('submit', function(e) {
+    let valid = true;
+
+    // Validasi Nama Menu
+    const nama = document.getElementById('fieldNama');
+    const errNama = document.getElementById('errNama');
+    if (!nama.value.trim()) {
+        nama.classList.add('is-invalid');
+        errNama.classList.add('show');
+        valid = false;
+    } else {
+        nama.classList.remove('is-invalid');
+        errNama.classList.remove('show');
+    }
+
+    // Validasi Harga
+    const harga = document.getElementById('fieldHarga');
+    const errHarga = document.getElementById('errHarga');
+    if (!harga.value || parseInt(harga.value) <= 0) {
+        harga.classList.add('is-invalid');
+        errHarga.classList.add('show');
+        valid = false;
+    } else {
+        harga.classList.remove('is-invalid');
+        errHarga.classList.remove('show');
+    }
+
+    // Validasi tipe file foto (jika ada file dipilih)
+    const foto = document.getElementById('fotoInput');
+    const errFoto = document.getElementById('errFoto');
+    if (foto.files.length > 0 && !foto.files[0].type.startsWith('image/')) {
+        foto.classList.add('is-invalid');
+        errFoto.classList.add('show');
+        valid = false;
+    }
+
+    if (!valid) {
+        e.preventDefault();
+        // Scroll ke error pertama
+        const firstErr = document.querySelector('.is-invalid');
+        if (firstErr) firstErr.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+});
+
+// Hilangkan error saat user mulai mengetik
+document.getElementById('fieldNama').addEventListener('input', function() {
+    if (this.value.trim()) {
+        this.classList.remove('is-invalid');
+        document.getElementById('errNama').classList.remove('show');
+    }
+});
+document.getElementById('fieldHarga').addEventListener('input', function() {
+    if (this.value && parseInt(this.value) > 0) {
+        this.classList.remove('is-invalid');
+        document.getElementById('errHarga').classList.remove('show');
+    }
+});
+
+// ===== Lightbox =====
+function openModal(wrapper) {
+    const src = wrapper.querySelector('img').src;
+    document.getElementById('modalImg').src = src;
+    document.getElementById('fotoModal').classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+function closeModal() {
+    document.getElementById('fotoModal').classList.remove('active');
+    document.body.style.overflow = '';
+}
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeModal();
+});
+</script>
+{% endblock %}

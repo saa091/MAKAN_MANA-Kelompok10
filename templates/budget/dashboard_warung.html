@@ -1,0 +1,288 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Dashboard Warung — MakanMana{% endblock %}
+{% block page_title %}Dashboard Warung{% endblock %}
+{% block page_subtitle %}{{ warung.nama_kantin }} — Ringkasan hari ini{% endblock %}
+
+{% block extra_css %}
+<style>
+.stat-card { border-radius: 16px !important; transition: transform 0.15s; }
+.stat-card:hover { transform: translateY(-2px); }
+.stat-icon { width: 52px; height: 52px; border-radius: 14px; display: flex; align-items: center; justify-content: center; }
+.pesanan-row { transition: background 0.15s; }
+.pesanan-row:hover { background: #f8fafc; }
+.waiting-badge { font-size: 0.7rem; padding: 3px 8px; border-radius: 99px; font-weight: 600; }
+.quick-status-btn { font-size: 0.78rem; padding: 4px 12px; border-radius: 8px; font-weight: 600; border: 2px solid transparent; cursor: pointer; }
+.quick-status-btn.active-status { border-color: currentColor; }
+
+/* Foto warung rapi */
+.foto-warung-card {
+    width: 100%;
+    aspect-ratio: 16 / 7;
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+    background: #f3f4f6;
+    cursor: zoom-in;
+    margin-bottom: 12px;
+}
+.foto-warung-card img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    display: block;
+    transition: transform 0.3s ease;
+}
+.foto-warung-card:hover img {
+    transform: scale(1.04);
+}
+.foto-hint {
+    position: absolute;
+    bottom: 7px;
+    right: 9px;
+    background: rgba(0,0,0,0.45);
+    color: #fff;
+    font-size: 0.65rem;
+    padding: 2px 7px;
+    border-radius: 20px;
+    pointer-events: none;
+}
+
+/* Lightbox */
+.foto-modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    z-index: 9999;
+    align-items: center;
+    justify-content: center;
+    cursor: zoom-out;
+}
+.foto-modal-overlay.active { display: flex; }
+.foto-modal-overlay img {
+    max-width: 92vw;
+    max-height: 88vh;
+    object-fit: contain;
+    border-radius: 12px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+}
+.foto-modal-close {
+    position: fixed;
+    top: 18px; right: 22px;
+    color: #fff;
+    font-size: 1.5rem;
+    cursor: pointer;
+    z-index: 10000;
+    background: rgba(0,0,0,0.45);
+    border-radius: 50%;
+    width: 38px; height: 38px;
+    display: flex; align-items: center; justify-content: center;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- ── STAT CARDS ── -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm p-4 stat-card h-100">
+            <div class="d-flex align-items-center gap-3">
+                <div class="stat-icon" style="background:#e0f7fa;">
+                    <i class="bi bi-bag text-info fs-4"></i>
+                </div>
+                <div>
+                    <small class="text-muted d-block" style="font-size:0.78rem;">Pesanan Hari Ini</small>
+                    <h3 class="fw-bold mb-0">{{ pesanan_hari_ini }}</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm p-4 stat-card h-100">
+            <div class="d-flex align-items-center gap-3">
+                <div class="stat-icon" style="background:#fff8e1;">
+                    <i class="bi bi-hourglass-split text-warning fs-4"></i>
+                </div>
+                <div>
+                    <small class="text-muted d-block" style="font-size:0.78rem;">Menunggu Diproses</small>
+                    <h3 class="fw-bold mb-0 {% if pesanan_pending > 0 %}text-warning{% endif %}">{{ pesanan_pending }}</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm p-4 stat-card h-100">
+            <div class="d-flex align-items-center gap-3">
+                <div class="stat-icon" style="background:#e8f5e9;">
+                    <i class="bi bi-arrow-repeat text-success fs-4"></i>
+                </div>
+                <div>
+                    <small class="text-muted d-block" style="font-size:0.78rem;">Sedang Diproses</small>
+                    <h3 class="fw-bold mb-0">{{ pesanan_diproses }}</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm p-4 stat-card h-100">
+            <div class="d-flex align-items-center gap-3">
+                <div class="stat-icon" style="background:#f3e5f5;">
+                    <i class="bi bi-cash-stack fs-4" style="color:#9c27b0;"></i>
+                </div>
+                <div>
+                    <small class="text-muted d-block" style="font-size:0.78rem;">Pendapatan Hari Ini</small>
+                    <h3 class="fw-bold mb-0" style="font-size:1.2rem;">Rp {{ total_pendapatan_hari_ini|intcomma }}</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- ── PESANAN AKTIF ── -->
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm" style="border-radius:16px;">
+            <div class="card-header bg-white border-0 pt-4 px-4 pb-3 d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="fw-bold mb-0">Pesanan Aktif Terbaru</h6>
+                    <small class="text-muted">Klik "Lihat Semua" untuk kelola status</small>
+                </div>
+                <a href="{% url 'budget:kelola_pesanan' %}" class="btn btn-sm rounded-pill text-white px-3" style="background:#00ced1;">
+                    <i class="bi bi-list-ul me-1"></i>Lihat Semua
+                </a>
+            </div>
+            <div class="card-body p-0">
+                {% for p in pesanan_aktif %}
+                <div class="d-flex align-items-center px-4 py-3 border-bottom pesanan-row">
+                    <div class="flex-grow-1">
+                        <div class="d-flex align-items-center gap-2 mb-1">
+                            <h6 class="fw-bold mb-0 small">Pesanan #{{ p.id }}</h6>
+                            <span class="text-muted small">— {{ p.mahasiswa.get_full_name|default:p.mahasiswa.username }}</span>
+                        </div>
+                        <small class="text-muted">
+                            {% for item in p.items.all %}{{ item.jumlah }}x {{ item.menu.nama_makanan }}{% if not forloop.last %}, {% endif %}{% endfor %}
+                        </small>
+                    </div>
+                    <div class="text-end me-3">
+                        <span class="fw-bold small d-block">Rp {{ p.total_harga|intcomma }}</span>
+                        <span class="waiting-badge
+                            {% if p.status == 'pending' %}bg-warning-subtle text-warning
+                            {% elif p.status == 'diproses' %}bg-info-subtle text-info
+                            {% endif %}">
+                            ⏱ {{ p.waktu_pesan|timesince }} lalu
+                        </span>
+                    </div>
+                    {% if p.status == 'pending' %}
+                        <span class="badge rounded-pill bg-warning-subtle text-warning border border-warning-subtle">⏳ Pending</span>
+                    {% elif p.status == 'diproses' %}
+                        <span class="badge rounded-pill bg-info-subtle text-info border border-info-subtle">🔄 Diproses</span>
+                    {% endif %}
+                </div>
+                {% empty %}
+                <div class="text-center py-5 text-muted">
+                    <i class="bi bi-inbox fs-2 d-block mb-2"></i>
+                    <p class="small mb-0">Tidak ada pesanan aktif saat ini.</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- ── SIDEBAR KANAN ── -->
+    <div class="col-lg-4">
+        <!-- Status Warung + Quick Change -->
+        <div class="card border-0 shadow-sm p-4 mb-3" style="border-radius:16px;">
+            <h6 class="fw-bold mb-3">Status Warung</h6>
+
+            {% if warung.foto_warung %}
+            <div class="foto-warung-card" onclick="openModal()">
+                <img src="{{ warung.foto_warung.url }}" alt="Foto {{ warung.nama_kantin }}">
+                <span class="foto-hint">🔍 Lihat full</span>
+            </div>
+            <!-- Lightbox -->
+            <div class="foto-modal-overlay" id="fotoModal" onclick="closeModal()">
+                <span class="foto-modal-close" onclick="closeModal()">✕</span>
+                <img src="{{ warung.foto_warung.url }}" alt="Foto {{ warung.nama_kantin }}">
+            </div>
+            {% endif %}
+
+            <h6 class="fw-bold mb-1">{{ warung.nama_kantin }}</h6>
+            <p class="text-muted small mb-0"><i class="bi bi-geo-alt me-1"></i>{{ warung.lokasi }}</p>
+            <p class="text-muted small mb-3"><i class="bi bi-clock me-1"></i>{{ warung.jam_buka|default:"Belum diset" }}</p>
+
+            <!-- Quick Status Toggle -->
+            <p class="small fw-bold mb-2 text-muted text-uppercase" style="font-size:0.68rem; letter-spacing:1px;">Ubah Status Keramaian</p>
+            <form action="{% url 'budget:pengaturan_warung' %}" method="POST" class="d-flex gap-2">
+                {% csrf_token %}
+                <input type="hidden" name="nama_kantin" value="{{ warung.nama_kantin }}">
+                <input type="hidden" name="lokasi" value="{{ warung.lokasi }}">
+                <input type="hidden" name="jam_buka" value="{{ warung.jam_buka }}">
+                <input type="hidden" name="deskripsi" value="{{ warung.deskripsi }}">
+                <input type="hidden" name="quick_update" value="1">
+                <button type="submit" name="status_keramaian" value="Sepi"
+                    class="btn btn-sm flex-fill {% if warung.status_keramaian == 'Sepi' %}btn-success{% else %}btn-outline-success{% endif %} rounded-3"
+                    style="font-size:0.78rem;">🟢 Sepi</button>
+                <button type="submit" name="status_keramaian" value="Normal"
+                    class="btn btn-sm flex-fill {% if warung.status_keramaian == 'Normal' %}btn-warning{% else %}btn-outline-warning{% endif %} rounded-3"
+                    style="font-size:0.78rem;">🟡 Normal</button>
+                <button type="submit" name="status_keramaian" value="Ramai"
+                    class="btn btn-sm flex-fill {% if warung.status_keramaian == 'Ramai' %}btn-danger{% else %}btn-outline-danger{% endif %} rounded-3"
+                    style="font-size:0.78rem;">🔴 Ramai</button>
+            </form>
+            {% if warung.status_keramaian_updated_at %}
+            <div class="text-muted mt-2" style="font-size:0.7rem;">
+                <i class="bi bi-clock-history me-1"></i>Diupdate {{ warung.status_keramaian_updated_at|timesince }} lalu
+            </div>
+            {% endif %}
+            <div class="mt-3">
+                <a href="{% url 'budget:pengaturan_warung' %}" class="btn btn-sm btn-outline-secondary rounded-pill w-100">
+                    <i class="bi bi-gear me-1"></i> Pengaturan Lengkap
+                </a>
+            </div>
+        </div>
+
+        <!-- Menu Terlaris -->
+        <div class="card border-0 shadow-sm p-4" style="border-radius:16px;">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="fw-bold mb-0"><i class="bi bi-fire text-danger me-2"></i>Menu Terlaris</h6>
+                <a href="{% url 'budget:riwayat_warung' %}" class="small text-muted text-decoration-none">Lihat analitik →</a>
+            </div>
+            {% for menu in menu_terlaris %}
+            <div class="d-flex align-items-center mb-2 {% if not forloop.last %}pb-2 border-bottom{% endif %}">
+                <span class="badge bg-light text-dark border me-2 fw-bold" style="min-width:24px;">{{ forloop.counter }}</span>
+                <div class="flex-grow-1">
+                    <div class="small fw-bold">{{ menu.nama_makanan }}</div>
+                    <small class="text-muted">Terjual {{ menu.jumlah_terjual }}x</small>
+                </div>
+                {% if menu.stok_tersedia %}
+                    <span class="badge bg-success-subtle text-success" style="font-size:0.65rem;">Tersedia</span>
+                {% else %}
+                    <span class="badge bg-danger-subtle text-danger" style="font-size:0.65rem;">Habis</span>
+                {% endif %}
+            </div>
+            {% empty %}
+            <p class="text-muted small text-center mb-0">Belum ada data menu terlaris.</p>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function openModal() {
+    document.getElementById('fotoModal').classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+function closeModal() {
+    document.getElementById('fotoModal').classList.remove('active');
+    document.body.style.overflow = '';
+}
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeModal();
+});
+</script>
+{% endblock %}

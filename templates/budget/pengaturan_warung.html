@@ -1,0 +1,248 @@
+{% extends 'base.html' %}
+
+{% block title %}Pengaturan Warung — MakanMana{% endblock %}
+{% block page_title %}Pengaturan Warung{% endblock %}
+{% block page_subtitle %}Edit informasi dan status warungmu{% endblock %}
+
+{% block extra_css %}
+<style>
+.form-control, .form-select { border: 1px solid #e5e7eb !important; background: #f9fafb !important; }
+.form-control:focus, .form-select:focus { background: #fff !important; border-color: #00ced1 !important; box-shadow: 0 0 0 3px rgba(0,206,209,0.12) !important; }
+.status-option { border: 2px solid #e5e7eb; border-radius: 12px; padding: 12px 16px; cursor: pointer; transition: 0.15s; flex: 1; text-align: center; }
+.status-option:hover { border-color: #9ca3af; }
+.status-option.selected-sepi { border-color: #22c55e; background: #f0fdf4; }
+.status-option.selected-normal { border-color: #eab308; background: #fefce8; }
+.status-option.selected-ramai { border-color: #ef4444; background: #fef2f2; }
+
+.foto-wrapper {
+    width: 100%;
+    height: 220px;
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+    background: #f3f4f6;
+    cursor: zoom-in;
+}
+.foto-wrapper img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    display: block;
+    transition: transform 0.3s ease;
+}
+.foto-wrapper:hover img {
+    transform: scale(1.03);
+}
+
+/* Modal lightbox */
+.foto-modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    z-index: 9999;
+    align-items: center;
+    justify-content: center;
+    cursor: zoom-out;
+}
+.foto-modal-overlay.active {
+    display: flex;
+}
+.foto-modal-overlay img {
+    max-width: 92vw;
+    max-height: 88vh;
+    object-fit: contain;
+    border-radius: 12px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+}
+.foto-modal-close {
+    position: fixed;
+    top: 18px;
+    right: 22px;
+    color: #fff;
+    font-size: 2rem;
+    cursor: pointer;
+    line-height: 1;
+    z-index: 10000;
+    background: rgba(0,0,0,0.4);
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.foto-hint {
+    position: absolute;
+    bottom: 8px;
+    right: 10px;
+    background: rgba(0,0,0,0.45);
+    color: #fff;
+    font-size: 0.7rem;
+    padding: 2px 8px;
+    border-radius: 20px;
+    pointer-events: none;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-7">
+        <div class="card border-0 shadow-sm" style="border-radius:16px;">
+            <div class="card-body p-4 p-md-5">
+
+                {% if warung.foto_warung %}
+                <div class="mb-4">
+                    <div class="foto-wrapper" id="fotoWrapper" onclick="openModal(this)">
+                        <img src="{{ warung.foto_warung.url }}" id="fotoPreview" alt="Foto Warung">
+                        <span class="foto-hint">🔍 Klik untuk lihat full</span>
+                    </div>
+                </div>
+                {% else %}
+                <div id="fotoPreviewWrap" class="mb-4 d-none">
+                    <div class="foto-wrapper" id="fotoWrapper" onclick="openModal(this)">
+                        <img src="" id="fotoPreview" alt="Foto Warung">
+                        <span class="foto-hint">🔍 Klik untuk lihat full</span>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Lightbox Modal -->
+                <div class="foto-modal-overlay" id="fotoModal" onclick="closeModal()">
+                    <span class="foto-modal-close" onclick="closeModal()">✕</span>
+                    <img src="" id="modalImg" alt="Preview Full">
+                </div>
+
+                <form method="POST" enctype="multipart/form-data">
+                    {% csrf_token %}
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold small">Nama Warung <span class="text-danger">*</span></label>
+                        <input type="text" name="nama_kantin" class="form-control rounded-3"
+                            value="{{ warung.nama_kantin }}" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold small">Lokasi</label>
+                        <input type="text" name="lokasi" class="form-control rounded-3"
+                            value="{{ warung.lokasi }}" placeholder="Contoh: Gedung A, Lantai 1 — dekat pintu masuk">
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold small">Jam Buka</label>
+                            <input type="text" name="jam_buka" class="form-control rounded-3"
+                                value="{{ warung.jam_buka }}" placeholder="Contoh: 07.00 – 16.00">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold small">Foto Warung</label>
+                            <input type="file" name="foto_warung" id="fotoInput"
+                                   class="form-control rounded-3" accept="image/*">
+                            {% if warung.foto_warung %}
+                            <small class="text-muted">Upload baru untuk mengganti foto.</small>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold small">Deskripsi Warung</label>
+                        <textarea name="deskripsi" class="form-control rounded-3" rows="3"
+                            placeholder="Ceritakan menu andalan, suasana, atau keunikan warungmu...">{{ warung.deskripsi }}</textarea>
+                    </div>
+
+                    <!-- Status Keramaian dengan visual selector -->
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold small d-block mb-2">Status Keramaian</label>
+                        <div class="d-flex gap-2">
+                            <label class="status-option {% if warung.status_keramaian == 'Sepi' %}selected-sepi{% endif %}">
+                                <input type="radio" name="status_keramaian" value="Sepi" class="d-none"
+                                       {% if warung.status_keramaian == 'Sepi' %}checked{% endif %}>
+                                <div class="fs-4">🟢</div>
+                                <div class="fw-semibold small">Sepi</div>
+                                <div class="text-muted" style="font-size:0.7rem;">Langsung dilayani</div>
+                            </label>
+                            <label class="status-option {% if warung.status_keramaian == 'Normal' %}selected-normal{% endif %}">
+                                <input type="radio" name="status_keramaian" value="Normal" class="d-none"
+                                       {% if warung.status_keramaian == 'Normal' %}checked{% endif %}>
+                                <div class="fs-4">🟡</div>
+                                <div class="fw-semibold small">Normal</div>
+                                <div class="text-muted" style="font-size:0.7rem;">Antrean biasa</div>
+                            </label>
+                            <label class="status-option {% if warung.status_keramaian == 'Ramai' %}selected-ramai{% endif %}">
+                                <input type="radio" name="status_keramaian" value="Ramai" class="d-none"
+                                       {% if warung.status_keramaian == 'Ramai' %}checked{% endif %}>
+                                <div class="fs-4">🔴</div>
+                                <div class="fw-semibold small">Ramai</div>
+                                <div class="text-muted" style="font-size:0.7rem;">Antrean panjang</div>
+                            </label>
+                        </div>
+                        <small class="text-muted d-block mt-2">
+                            <i class="bi bi-info-circle me-1"></i>Mahasiswa bisa melihat status ini untuk memilih warung.
+                            {% if warung.status_keramaian_updated_at %}
+                            Terakhir diubah {{ warung.status_keramaian_updated_at|timesince }} lalu.
+                            {% endif %}
+                        </small>
+                    </div>
+
+                    <div class="d-flex justify-content-between gap-2">
+                        <a href="{% url 'budget:dashboard_warung' %}" class="btn btn-light rounded-pill px-4">
+                            <i class="bi bi-arrow-left me-1"></i>Kembali
+                        </a>
+                        <button type="submit" class="btn rounded-pill px-5 text-white fw-bold" style="background:#00ced1; border:none;">
+                            <i class="bi bi-check-lg me-2"></i>Simpan Perubahan
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Preview foto warung
+document.getElementById('fotoInput').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+        const img = document.getElementById('fotoPreview');
+        const wrap = document.getElementById('fotoPreviewWrap');
+        img.src = ev.target.result;
+        if (wrap) wrap.classList.remove('d-none');
+    };
+    reader.readAsDataURL(file);
+});
+
+// Lightbox
+function openModal(wrapper) {
+    const src = wrapper.querySelector('img').src;
+    document.getElementById('modalImg').src = src;
+    document.getElementById('fotoModal').classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+function closeModal() {
+    document.getElementById('fotoModal').classList.remove('active');
+    document.body.style.overflow = '';
+}
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeModal();
+});
+
+// Visual radio untuk status keramaian
+document.querySelectorAll('.status-option input[type=radio]').forEach(function(radio) {
+    radio.addEventListener('change', function() {
+        document.querySelectorAll('.status-option').forEach(function(opt) {
+            opt.classList.remove('selected-sepi', 'selected-normal', 'selected-ramai');
+        });
+        const parent = this.closest('.status-option');
+        if (this.value === 'Sepi') parent.classList.add('selected-sepi');
+        else if (this.value === 'Normal') parent.classList.add('selected-normal');
+        else parent.classList.add('selected-ramai');
+    });
+});
+</script>
+{% endblock %}

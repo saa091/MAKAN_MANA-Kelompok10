@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block content %}
+<div class="container">
+    <h2 class="fw-bold mb-4">Daftar Kantin & UMKM</h2>
+    <div class="row">
+        {% for k in kantins %}
+        <div class="col-md-4 mb-3">
+            <div class="card border-0 shadow-sm rounded-4 h-100 transition-hover">
+                <div class="card-body p-4 text-center">
+                    <div class="p-3 rounded-circle d-inline-block mb-3" style="background-color: #e0fbfc;">
+                        <i class="bi bi-shop fs-2" style="color: #00ced1;"></i>
+                    </div>
+                    <h5 class="fw-bold">{{ k.nama_kantin }}</h5>
+                    <p class="text-muted small">Tersedia berbagai menu sehat dan terjangkau di lingkungan kampus.</p>
+
+                    <!-- Badge status keramaian + timestamp -->
+                    <div class="mb-2">
+                        {% if k.status_keramaian == 'Ramai' %}
+                            <span class="badge rounded-pill" style="background:rgba(220,53,69,0.85);font-size:0.72rem;">🔴 Ramai</span>
+                        {% elif k.status_keramaian == 'Normal' %}
+                            <span class="badge rounded-pill" style="background:rgba(255,165,0,0.85);font-size:0.72rem;">🟡 Normal</span>
+                        {% else %}
+                            <span class="badge rounded-pill" style="background:rgba(25,135,84,0.85);font-size:0.72rem;">🟢 Sepi</span>
+                        {% endif %}
+                        {% if k.status_keramaian_updated_at %}
+                        <br><small class="text-muted" style="font-size:0.68rem;">
+                            <i class="bi bi-clock-history"></i> {{ k.status_keramaian_updated_at|timesince }} lalu
+                        </small>
+                        {% endif %}
+                    </div>
+                    <!-- end badge -->
+
+                    <hr class="opacity-25">
+                    <a href="{% url 'budget:kantin_detail' k.id %}" class="btn btn-outline-primary btn-sm rounded-pill px-4">
+                        Lihat Menu
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12 text-center py-5">
+            <p class="text-muted">Data kantin belum tersedia.</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<style>
+    .transition-hover {
+        transition: all 0.3s ease;
+    }
+    .transition-hover:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important;
+    }
+</style>
+{% endblock %}

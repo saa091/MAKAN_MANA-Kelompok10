@@ -1,0 +1,165 @@
+{% extends 'base.html' %}
+{% block title %}Moderasi — MakanMana{% endblock %}
+{% block page_title %}Moderasi{% endblock %}
+{% block page_subtitle %}Pantau & hapus review atau komentar yang tidak pantas{% endblock %}
+
+{% block extra_css %}
+<style>
+.section-card { background:white; border-radius:16px; border:none; box-shadow:0 2px 12px rgba(0,0,0,0.06); padding:24px; }
+.section-title { font-size:0.95rem; font-weight:700; color:#1e2d3d; margin-bottom:16px; }
+.tab-pill {
+    display:inline-flex; gap:6px; background:#f4f6f9; border-radius:12px; padding:4px;
+}
+.tab-pill a {
+    padding:7px 18px; border-radius:9px; font-size:0.82rem; font-weight:600;
+    text-decoration:none; color:#6b7280; transition:0.15s;
+}
+.tab-pill a.active { background:white; color:#7c3aed; box-shadow:0 1px 6px rgba(0,0,0,0.08); }
+.review-card { border:1px solid #f1f5f9; border-radius:12px; padding:16px; margin-bottom:12px; transition:0.15s; }
+.review-card:hover { border-color:#ddd6fe; }
+.review-card.dilaporkan { border-color:#fca5a5; background:#fff7f7; }
+.star-filled { color:#f59e0b; }
+.star-empty  { color:#e5e7eb; }
+.badge-dilaporkan { background:#fee2e2; color:#991b1b; font-size:0.7rem; padding:3px 10px; border-radius:99px; font-weight:600; }
+.badge-aman      { background:#d1fae5; color:#065f46; font-size:0.7rem; padding:3px 10px; border-radius:99px; font-weight:600; }
+.btn-hapus   { background:#ef4444; color:white; border:none; border-radius:8px; font-size:0.78rem; padding:6px 14px; }
+.btn-hapus:hover { background:#dc2626; color:white; }
+.btn-tandai-aman {
+    border:1.5px solid #059669; color:#059669; background:transparent;
+    border-radius:8px; font-size:0.78rem; padding:5px 12px;
+    cursor:pointer; transition:0.15s;
+}
+.btn-tandai-aman:hover { background:#059669; color:white; }
+.btn-laporkan {
+    border:1.5px solid #ef4444; color:#ef4444; background:transparent;
+    border-radius:8px; font-size:0.78rem; padding:5px 12px;
+    cursor:pointer; transition:0.15s;
+}
+.btn-laporkan:hover { background:#ef4444; color:white; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- RINGKASAN -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="section-card text-center">
+            <div style="font-size:1.8rem; font-weight:800; color:#ef4444;">{{ total_dilaporkan }}</div>
+            <div style="font-size:0.78rem; color:#8a94a6; margin-top:2px;">Dilaporkan</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="section-card text-center">
+            <div style="font-size:1.8rem; font-weight:800; color:#7c3aed;">{{ total_semua_review }}</div>
+            <div style="font-size:0.78rem; color:#8a94a6; margin-top:2px;">Total Review</div>
+        </div>
+    </div>
+</div>
+
+<!-- TABS -->
+<div class="mb-4">
+    <div class="tab-pill">
+        <a href="?tab=dilaporkan" class="{% if tab == 'dilaporkan' %}active{% endif %}">
+            <i class="bi bi-flag me-1"></i> Dilaporkan
+            {% if total_dilaporkan %}
+            <span style="background:#ef4444; color:white; font-size:0.65rem; padding:1px 6px; border-radius:99px; margin-left:4px;">{{ total_dilaporkan }}</span>
+            {% endif %}
+        </a>
+        <a href="?tab=semua" class="{% if tab == 'semua' %}active{% endif %}">
+            <i class="bi bi-list-ul me-1"></i> Semua Review
+        </a>
+    </div>
+</div>
+
+<!-- REVIEW LIST -->
+<div class="section-card">
+    <div class="section-title">
+        {% if tab == 'dilaporkan' %}
+            <i class="bi bi-flag me-2" style="color:#ef4444;"></i>Review Dilaporkan
+        {% else %}
+            <i class="bi bi-chat-left-text me-2" style="color:#7c3aed;"></i>Semua Review
+        {% endif %}
+    </div>
+
+    <!-- Keterangan tombol aksi -->
+    <div class="d-flex gap-3 mb-3 p-3 rounded-3" style="background:#f8fafc; font-size:0.78rem; color:#6b7280; border:1px solid #e2e8f0;">
+        <div><span class="badge rounded-pill" style="background:#ef4444; color:white; font-size:0.7rem; padding:3px 8px;"><i class="bi bi-trash3"></i> Hapus</span> — Hapus review permanen dari sistem</div>
+        <div><span class="badge rounded-pill" style="background:#059669; color:white; font-size:0.7rem; padding:3px 8px;"><i class="bi bi-check-circle"></i> Tandai Aman</span> — Review sudah ditinjau, bukan pelanggaran</div>
+        <div><span class="badge rounded-pill" style="background:#ef4444; color:white; font-size:0.7rem; padding:3px 8px;"><i class="bi bi-flag"></i> Laporkan</span> — Tandai review perlu moderasi</div>
+    </div>
+
+    {% for r in reviews %}
+    <div class="review-card {% if r.dilaporkan %}dilaporkan{% endif %}">
+        <div class="d-flex justify-content-between align-items-start gap-2">
+            <div class="flex-grow-1">
+                <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
+                    <span style="font-weight:700; font-size:0.875rem; color:#1e2d3d;">{{ r.mahasiswa.username }}</span>
+                    <span style="font-size:0.75rem; color:#8a94a6;">→</span>
+                    <span style="font-size:0.82rem; color:#374151; font-weight:600;">{{ r.menu.nama_makanan }}</span>
+                    <span style="font-size:0.72rem; color:#8a94a6;">({{ r.menu.kantin.nama_kantin }})</span>
+                    {% if r.dilaporkan %}
+                        <span class="badge-dilaporkan"><i class="bi bi-flag-fill me-1"></i>Dilaporkan</span>
+                    {% else %}
+                        <span class="badge-aman"><i class="bi bi-check-circle me-1"></i>Aman</span>
+                    {% endif %}
+                </div>
+                <div class="mb-1">
+                    {% for i in "12345" %}
+                        <i class="bi bi-star{% if forloop.counter <= r.bintang %}-fill star-filled{% else %} star-empty{% endif %}" style="font-size:0.75rem;"></i>
+                    {% endfor %}
+                </div>
+                <p style="font-size:0.875rem; color:#374151; margin-bottom:4px;">{{ r.komentar }}</p>
+                <span style="font-size:0.72rem; color:#8a94a6;">{{ r.waktu_review|date:"d M Y, H:i" }}</span>
+            </div>
+            <div class="d-flex flex-column gap-2 flex-shrink-0">
+
+                <!-- Tombol Hapus (selalu tampil) -->
+                <form method="POST" style="display:inline;">
+                    {% csrf_token %}
+                    <input type="hidden" name="aksi" value="hapus">
+                    <input type="hidden" name="review_id" value="{{ r.id }}">
+                    <button type="submit" class="btn-hapus" onclick="return confirm('Hapus review ini secara permanen?')">
+                        <i class="bi bi-trash3"></i> Hapus
+                    </button>
+                </form>
+
+                {% if r.dilaporkan %}
+                <!-- Review sudah dilaporkan → tampilkan Tandai Aman -->
+                <form method="POST" style="display:inline;">
+                    {% csrf_token %}
+                    <input type="hidden" name="aksi" value="tandai">
+                    <input type="hidden" name="review_id" value="{{ r.id }}">
+                    <button type="submit" class="btn-tandai-aman"
+                            title="Review ini sudah ditinjau dan tidak melanggar aturan">
+                        <i class="bi bi-check-circle"></i> Tandai Aman
+                    </button>
+                </form>
+                {% else %}
+                <!-- Review belum dilaporkan → tampilkan Laporkan -->
+                <form method="POST" style="display:inline;">
+                    {% csrf_token %}
+                    <input type="hidden" name="aksi" value="laporkan">
+                    <input type="hidden" name="review_id" value="{{ r.id }}">
+                    <button type="submit" class="btn-laporkan"
+                            title="Tandai review ini sebagai perlu moderasi"
+                            onclick="return confirm('Tandai review ini sebagai perlu moderasi?')">
+                        <i class="bi bi-flag"></i> Laporkan
+                    </button>
+                </form>
+                {% endif %}
+
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="text-center py-5">
+        <i class="bi bi-shield-check" style="font-size:2.5rem; color:#7c3aed; opacity:0.3;"></i>
+        <p class="text-muted mt-3">
+            {% if tab == 'dilaporkan' %}Tidak ada review yang dilaporkan.{% else %}Belum ada review sama sekali.{% endif %}
+        </p>
+    </div>
+    {% endfor %}
+</div>
+
+{% endblock %}

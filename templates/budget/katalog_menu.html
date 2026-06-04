@@ -1,0 +1,207 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}{{ kantin.nama_kantin }} — MakanMana{% endblock %}
+{% block page_title %}{{ kantin.nama_kantin }}{% endblock %}
+{% block page_subtitle %}{{ kantin.lokasi }} · {{ kantin.jam_buka }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.menu-card {
+    border-radius: 14px;
+    overflow: hidden;
+    border: none;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.menu-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 28px rgba(0,0,0,0.10) !important;
+}
+.menu-card .menu-img-wrapper {
+    position: relative;
+    height: 170px;
+    overflow: hidden;
+    background: #f1f3f5;
+}
+.menu-card .menu-img-wrapper img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+}
+.menu-card:hover .menu-img-wrapper img {
+    transform: scale(1.05);
+}
+.menu-no-img {
+    height: 170px;
+    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.btn-cart {
+    background: #00ced1;
+    color: #fff;
+    border: none;
+    border-radius: 50px;
+    transition: background 0.2s;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.btn-cart:hover { background: #00b0b3; color: #fff; }
+.filter-btn.active-filter {
+    background: #00ced1 !important;
+    color: #fff !important;
+    border-color: #00ced1 !important;
+}
+.sidebar-kantin {
+    position: sticky;
+    top: 80px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <!-- Kolom Kiri: Filter + Menu Grid -->
+    <div class="col-lg-8">
+
+        <!-- Filter Bar -->
+        <div class="card border-0 shadow-sm mb-4 p-3" style="border-radius:14px;">
+            <div class="d-flex flex-wrap gap-2 align-items-center">
+                <span class="fw-semibold text-muted small me-1">Filter:</span>
+                <a href="?{% if label_filter %}label={{ label_filter }}{% endif %}"
+                   class="btn btn-sm rounded-pill filter-btn {% if not filter_budget %}active-filter{% else %}btn-outline-secondary{% endif %}">
+                    Semua Harga
+                </a>
+                {% if budget > 0 %}
+                <a href="?filter_budget=1{% if label_filter %}&label={{ label_filter }}{% endif %}"
+                   class="btn btn-sm rounded-pill filter-btn {% if filter_budget %}active-filter{% else %}btn-outline-secondary{% endif %}">
+                    <i class="bi bi-wallet2 me-1"></i>≤ Rp {{ budget|intcomma }}
+                </a>
+                {% endif %}
+                {% for lbl in semua_label %}{% if lbl %}
+                <a href="?label={{ lbl }}{% if filter_budget %}&filter_budget=1{% endif %}"
+                   class="btn btn-sm rounded-pill filter-btn {% if label_filter == lbl %}active-filter{% else %}btn-outline-secondary{% endif %}">
+                    {{ lbl }}
+                </a>
+                {% endif %}{% endfor %}
+            </div>
+        </div>
+
+        <!-- Grid Menu -->
+        <div class="row g-3">
+            {% for menu in menus %}
+            <div class="col-md-6">
+                <div class="card shadow-sm h-100 menu-card">
+                    <!-- Gambar -->
+                    {% if menu.gambar %}
+                    <div class="menu-img-wrapper">
+                        <img src="{{ menu.gambar.url }}" alt="{{ menu.nama_makanan }}">
+                    </div>
+                    {% else %}
+                    <div class="menu-no-img">
+                        <i class="bi bi-image text-muted" style="font-size:2.5rem; opacity:0.35;"></i>
+                    </div>
+                    {% endif %}
+
+                    <!-- Info Menu -->
+                    <div class="p-3 d-flex flex-column h-100">
+                        <div class="d-flex justify-content-between align-items-start mb-1">
+                            <h6 class="fw-bold mb-0 text-dark lh-sm" style="flex:1; padding-right:8px;">
+                                {{ menu.nama_makanan }}
+                            </h6>
+                            {% if menu.avg_rating > 0 %}
+                            <span class="small text-warning flex-shrink-0">
+                                <i class="bi bi-star-fill"></i> {{ menu.avg_rating }}
+                            </span>
+                            {% endif %}
+                        </div>
+
+                        {% if menu.label %}
+                        <span class="badge bg-info-subtle text-info rounded-pill small mb-2" style="width:fit-content;">
+                            {{ menu.label }}
+                        </span>
+                        {% endif %}
+
+                        <div class="d-flex justify-content-between align-items-center mt-auto pt-2">
+                            <span class="fw-bold text-dark fs-6">Rp {{ menu.harga|intcomma }}</span>
+                            <div class="d-flex gap-2 align-items-center">
+                                <a href="{% url 'budget:detail_menu' menu.id %}"
+                                   class="btn btn-sm btn-outline-secondary rounded-pill px-3">Detail</a>
+                                <form action="{% url 'budget:tambah_keranjang' menu.id %}" method="POST">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="next" value="{{ request.path }}">
+                                    <button type="submit" class="btn-cart">
+                                        <i class="bi bi-cart-plus"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="col-12 text-center py-5">
+                <i class="bi bi-inbox text-muted" style="font-size:3rem; opacity:0.3;"></i>
+                <p class="text-muted mt-3 mb-0">Tidak ada menu yang cocok dengan filter ini.</p>
+                <a href="?" class="btn btn-outline-secondary btn-sm rounded-pill mt-2">Reset Filter</a>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Kolom Kanan: Info Kantin + Budget -->
+    <div class="col-lg-4">
+        <div class="sidebar-kantin">
+            <!-- Info Kantin -->
+            <div class="card border-0 shadow-sm mb-3" style="border-radius:14px; overflow:hidden;">
+                {% if kantin.foto_warung %}
+                <img src="{{ kantin.foto_warung.url }}" alt="{{ kantin.nama_kantin }}"
+                     style="width:100%; height:160px; object-fit:cover;">
+                {% endif %}
+                <div class="p-4">
+                    <h6 class="fw-bold mb-1">{{ kantin.nama_kantin }}</h6>
+                    <p class="text-muted small mb-1"><i class="bi bi-geo-alt me-1"></i>{{ kantin.lokasi }}</p>
+                    <p class="text-muted small mb-2"><i class="bi bi-clock me-1"></i>{{ kantin.jam_buka|default:"Info tidak tersedia" }}</p>
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        {% if kantin.status_keramaian == 'Ramai' %}
+                            <span class="badge bg-danger rounded-pill px-3">🔴 Ramai</span>
+                        {% elif kantin.status_keramaian == 'Normal' %}
+                            <span class="badge bg-warning rounded-pill px-3">🟡 Normal</span>
+                        {% else %}
+                            <span class="badge bg-success rounded-pill px-3">🟢 Sepi</span>
+                        {% endif %}
+                        {% if kantin.status_keramaian_updated_at %}
+                        <span class="text-muted" style="font-size:0.7rem;">
+                            <i class="bi bi-clock-history me-1"></i>{{ kantin.status_keramaian_updated_at|timesince }} lalu
+                        </span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Budget Kamu -->
+            <div class="card border-0 shadow-sm p-4" style="border-radius:14px;">
+                <div class="d-flex align-items-center mb-2">
+                    <div class="rounded-3 p-2 me-3" style="background:#e0fffe;">
+                        <i class="bi bi-wallet2 text-info fs-5"></i>
+                    </div>
+                    <div>
+                        <small class="text-muted d-block" style="font-size:0.75rem;">Budget Kamu</small>
+                        <h5 class="fw-bold mb-0 text-dark">Rp {{ budget|intcomma }}</h5>
+                    </div>
+                </div>
+                <a href="{% url 'budget:atur_budget' %}"
+                   class="btn btn-sm btn-outline-secondary rounded-pill w-100 mt-2">
+                    <i class="bi bi-pencil me-1"></i>Ubah Budget
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

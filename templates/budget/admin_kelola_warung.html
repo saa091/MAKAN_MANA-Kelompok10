@@ -1,0 +1,237 @@
+{% extends 'base.html' %}
+{% block title %}Kelola Warung — MakanMana{% endblock %}
+{% block page_title %}Kelola Warung{% endblock %}
+{% block page_subtitle %}Pantau, tambah, dan nonaktifkan warung kampus{% endblock %}
+
+{% block extra_css %}
+<style>
+.section-card { background:white; border-radius:16px; border:none; box-shadow:0 2px 12px rgba(0,0,0,0.06); padding:24px; }
+.section-title { font-size:0.95rem; font-weight:700; color:#1e2d3d; margin-bottom:16px; }
+.badge-status { font-size:0.7rem; padding:3px 10px; border-radius:99px; font-weight:600; }
+.badge-sepi   { background:#fef3c7; color:#92400e; }
+.badge-normal { background:#d1fae5; color:#065f46; }
+.badge-ramai  { background:#fee2e2; color:#991b1b; }
+table th { font-size:0.75rem; text-transform:uppercase; letter-spacing:0.7px; color:#8a94a6; font-weight:700; border:none; }
+table td { font-size:0.875rem; vertical-align:middle; border-color:#f1f5f9; }
+.btn-purple { background:#7c3aed; color:white; border:none; border-radius:10px; font-size:0.82rem; padding:8px 16px; }
+.btn-purple:hover { background:#6d28d9; color:white; }
+.btn-outline-purple { border:1.5px solid #7c3aed; color:#7c3aed; border-radius:10px; font-size:0.82rem; padding:7px 14px; background:transparent; }
+.btn-outline-purple:hover { background:#7c3aed; color:white; }
+.form-label { font-size:0.82rem; font-weight:600; color:#374151; }
+.form-control, .form-select { border-radius:10px; font-size:0.875rem; border-color:#e5e7eb; }
+.form-control:focus, .form-select:focus { border-color:#7c3aed; box-shadow:0 0 0 3px rgba(124,58,237,0.1); }
+.modal-content { border-radius:18px; border:none; }
+.modal-header { border-bottom:1px solid #f1f5f9; padding:20px 24px 16px; }
+.modal-body { padding:20px 24px; }
+.modal-footer { border-top:1px solid #f1f5f9; padding:16px 24px; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- RINGKASAN -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="section-card text-center">
+            <div style="font-size:1.8rem; font-weight:800; color:#7c3aed;">{{ warung_list.count }}</div>
+            <div style="font-size:0.78rem; color:#8a94a6; margin-top:2px;">Total Warung</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="section-card text-center">
+            <div style="font-size:1.8rem; font-weight:800; color:#10b981;">{{ warung_list|length }}</div>
+            <div style="font-size:0.78rem; color:#8a94a6; margin-top:2px;">Warung Terdaftar</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="section-card text-center">
+            <div style="font-size:1.8rem; font-weight:800; color:#f59e0b;">{{ pemilik_list.count }}</div>
+            <div style="font-size:0.78rem; color:#8a94a6; margin-top:2px;">Akun Pemilik</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="section-card text-center">
+            <button class="btn btn-purple w-100" data-bs-toggle="modal" data-bs-target="#modalTambahWarung">
+                <i class="bi bi-plus-lg me-1"></i> Tambah Warung
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- TABEL WARUNG -->
+<div class="section-card">
+    <div class="section-title"><i class="bi bi-shop-window me-2" style="color:#7c3aed;"></i>Daftar Semua Warung</div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Warung</th>
+                    <th>Lokasi</th>
+                    <th>Jam Buka</th>
+                    <th>Pemilik</th>
+                    <th>Menu</th>
+                    <th>Pesanan</th>
+                    <th>Status</th>
+                    <th>Aksi</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for w in warung_list %}
+                <tr>
+                    <td>
+                        <div style="font-weight:600; color:#1e2d3d;">{{ w.nama_kantin }}</div>
+                    </td>
+                    <td class="text-muted" style="font-size:0.8rem;">{{ w.lokasi|default:"—" }}</td>
+                    <td class="text-muted" style="font-size:0.8rem;">{{ w.jam_buka|default:"—" }}</td>
+                    <td>
+                        {% if w.pemilik %}
+                            <div style="font-size:0.82rem; font-weight:600;">{{ w.pemilik.username }}</div>
+                            <div style="font-size:0.72rem; color:#8a94a6;">{{ w.pemilik.email|default:"—" }}</div>
+                        {% else %}
+                            <span class="text-muted small">Belum ada</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-center">{{ w.total_menu }}</td>
+                    <td class="text-center">{{ w.total_pesanan }}</td>
+                    <td>
+                        <span class="badge-status
+                            {% if w.status_keramaian == 'Sepi' %}badge-sepi
+                            {% elif w.status_keramaian == 'Ramai' %}badge-ramai
+                            {% else %}badge-normal{% endif %}">
+                            {{ w.status_keramaian }}
+                        </span>
+                        {% if w.status_keramaian_updated_at %}
+                        <div style="font-size:0.68rem; color:#a0aab4; margin-top:3px;">
+                            <i class="bi bi-clock-history me-1"></i>{{ w.status_keramaian_updated_at|timesince }} lalu
+                        </div>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="d-flex gap-1">
+                            {% if w.status_keramaian == 'Sepi' %}
+                            <form method="POST" style="display:inline;">
+                                {% csrf_token %}
+                                <input type="hidden" name="aksi" value="aktifkan">
+                                <input type="hidden" name="warung_id" value="{{ w.id }}">
+                                <button type="submit" class="btn btn-sm btn-outline-success" style="border-radius:8px; font-size:0.75rem;" title="Aktifkan">
+                                    <i class="bi bi-check-circle"></i>
+                                </button>
+                            </form>
+                            {% else %}
+                            <form method="POST" style="display:inline;">
+                                {% csrf_token %}
+                                <input type="hidden" name="aksi" value="nonaktifkan">
+                                <input type="hidden" name="warung_id" value="{{ w.id }}">
+                                <button type="submit" class="btn btn-sm btn-outline-warning" style="border-radius:8px; font-size:0.75rem;" title="Nonaktifkan"
+                                    onclick="return confirm('Nonaktifkan warung {{ w.nama_kantin }}?')">
+                                    <i class="bi bi-pause-circle"></i>
+                                </button>
+                            </form>
+                            {% endif %}
+                            <form method="POST" style="display:inline;">
+                                {% csrf_token %}
+                                <input type="hidden" name="aksi" value="hapus_warung">
+                                <input type="hidden" name="warung_id" value="{{ w.id }}">
+                                <button type="submit" class="btn btn-sm btn-outline-danger" style="border-radius:8px; font-size:0.75rem;" title="Hapus"
+                                    onclick="return confirm('Hapus warung {{ w.nama_kantin }}? Semua data terkait akan ikut terhapus.')">
+                                    <i class="bi bi-trash3"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="8" class="text-center text-muted py-4">Belum ada warung terdaftar.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- DAFTAR AKUN PEMILIK -->
+<div class="section-card mt-4">
+    <div class="section-title"><i class="bi bi-person-badge me-2" style="color:#7c3aed;"></i>Daftar Akun Pemilik Warung</div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr><th>Username</th><th>Nama</th><th>Email</th><th>Warung Dimiliki</th></tr>
+            </thead>
+            <tbody>
+                {% for p in pemilik_list %}
+                <tr>
+                    <td style="font-weight:600;">{{ p.user.username }}</td>
+                    <td>{{ p.user.get_full_name|default:"—" }}</td>
+                    <td class="text-muted">{{ p.user.email|default:"—" }}</td>
+                    <td>
+                        {% for w in warung_list %}
+                            {% if w.pemilik == p.user %}
+                                <span class="badge bg-light text-dark border" style="font-size:0.75rem; border-radius:6px;">{{ w.nama_kantin }}</span>
+                            {% endif %}
+                        {% endfor %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="4" class="text-center text-muted py-3">Belum ada akun pemilik.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- MODAL TAMBAH WARUNG -->
+<div class="modal fade" id="modalTambahWarung" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="fw-bold mb-0" style="font-size:1rem; color:#1e2d3d;">
+                    <i class="bi bi-plus-circle me-2" style="color:#7c3aed;"></i>Tambah Warung & Akun Pemilik
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" enctype="multipart/form-data">
+                {% csrf_token %}
+                <input type="hidden" name="aksi" value="tambah_warung">
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label">Nama Warung <span class="text-danger">*</span></label>
+                            <input type="text" name="nama_kantin" class="form-control" placeholder="Contoh: Warung Bu Sari" required>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Lokasi</label>
+                            <input type="text" name="lokasi" class="form-control" placeholder="Contoh: Gedung A, Lantai 1">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Jam Buka</label>
+                            <input type="text" name="jam_buka" class="form-control" placeholder="Contoh: 07.00 – 16.00">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Foto Warung</label>
+                            <input type="file" name="foto_warung" class="form-control" accept="image/*">
+                        </div>
+                        <div class="col-12"><hr style="border-color:#f1f5f9;"></div>
+                        <div class="col-12">
+                            <div style="font-size:0.78rem; font-weight:700; text-transform:uppercase; letter-spacing:0.8px; color:#8a94a6; margin-bottom:10px;">Akun Pemilik Baru</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Username <span class="text-danger">*</span></label>
+                            <input type="text" name="username_pemilik" class="form-control" placeholder="username" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Password <span class="text-danger">*</span></label>
+                            <input type="password" name="password_pemilik" class="form-control" placeholder="password" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal" style="border-radius:10px;">Batal</button>
+                    <button type="submit" class="btn btn-purple">
+                        <i class="bi bi-check-lg me-1"></i> Simpan
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

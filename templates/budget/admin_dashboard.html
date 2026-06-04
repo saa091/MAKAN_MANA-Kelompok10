@@ -1,0 +1,216 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard Admin — MakanMana{% endblock %}
+{% block page_title %}Dashboard Admin{% endblock %}
+{% block page_subtitle %}Ringkasan seluruh aktivitas kantin kampus{% endblock %}
+
+{% block extra_css %}
+<style>
+.stat-card {
+    border-radius: 16px; border: none;
+    padding: 22px 24px;
+    background: white;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    transition: transform 0.15s;
+}
+.stat-card:hover { transform: translateY(-2px); }
+.stat-icon {
+    width: 48px; height: 48px; border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.35rem; flex-shrink: 0;
+}
+.icon-purple { background: rgba(124,58,237,0.1); color: #7c3aed; }
+.icon-teal   { background: rgba(0,206,209,0.1);  color: #00ced1; }
+.icon-orange { background: rgba(245,158,11,0.1); color: #f59e0b; }
+.icon-green  { background: rgba(16,185,129,0.1); color: #10b981; }
+.icon-red    { background: rgba(239,68,68,0.1);  color: #ef4444; }
+.stat-value  { font-size: 1.75rem; font-weight: 800; color: #1e2d3d; line-height: 1; }
+.stat-label  { font-size: 0.78rem; color: #8a94a6; margin-top: 4px; }
+.section-card {
+    background: white; border-radius: 16px; border: none;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06); padding: 24px;
+}
+.section-title { font-size: 0.95rem; font-weight: 700; color: #1e2d3d; margin-bottom: 16px; }
+.badge-status { font-size: 0.7rem; padding: 3px 10px; border-radius: 99px; font-weight: 600; }
+.badge-sepi    { background: #fef3c7; color: #92400e; }
+.badge-normal  { background: #d1fae5; color: #065f46; }
+.badge-ramai   { background: #fee2e2; color: #991b1b; }
+.badge-pending    { background: #fef3c7; color: #92400e; }
+.badge-diproses   { background: #dbeafe; color: #1e40af; }
+.badge-siap       { background: #d1fae5; color: #065f46; }
+.badge-selesai    { background: #e0e7ff; color: #3730a3; }
+.badge-dibatalkan { background: #fee2e2; color: #991b1b; }
+table th { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.7px; color: #8a94a6; font-weight: 700; border: none; }
+table td { font-size: 0.875rem; vertical-align: middle; border-color: #f1f5f9; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ===== STAT CARDS ===== -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-xl-2">
+        <div class="stat-card d-flex gap-3 align-items-center">
+            <div class="stat-icon icon-purple"><i class="bi bi-shop-window"></i></div>
+            <div>
+                <div class="stat-value">{{ total_warung }}</div>
+                <div class="stat-label">Total Warung</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-xl-2">
+        <div class="stat-card d-flex gap-3 align-items-center">
+            <div class="stat-icon icon-teal"><i class="bi bi-mortarboard"></i></div>
+            <div>
+                <div class="stat-value">{{ total_mahasiswa }}</div>
+                <div class="stat-label">Mahasiswa</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-xl-2">
+        <div class="stat-card d-flex gap-3 align-items-center">
+            <div class="stat-icon icon-orange"><i class="bi bi-person-badge"></i></div>
+            <div>
+                <div class="stat-value">{{ total_pemilik }}</div>
+                <div class="stat-label">Pemilik Warung</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-xl-2">
+        <div class="stat-card d-flex gap-3 align-items-center">
+            <div class="stat-icon icon-teal"><i class="bi bi-bag-check"></i></div>
+            <div>
+                <div class="stat-value">{{ total_pesanan_hari_ini }}</div>
+                <div class="stat-label">Pesanan Hari Ini</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-xl-2">
+        <div class="stat-card d-flex gap-3 align-items-center">
+            <div class="stat-icon icon-green"><i class="bi bi-receipt-cutoff"></i></div>
+            <div>
+                <div class="stat-value">{{ total_pesanan_semua }}</div>
+                <div class="stat-label">Total Pesanan</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-xl-2">
+        <div class="stat-card d-flex gap-3 align-items-center">
+            <div class="stat-icon icon-green"><i class="bi bi-cash-stack"></i></div>
+            <div>
+                <div class="stat-value" style="font-size:1.1rem;">Rp {{ total_pendapatan|floatformat:0 }}</div>
+                <div class="stat-label">Total Transaksi</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== GRAFIK + STATUS WARUNG ===== -->
+<div class="row g-4 mb-4">
+    <div class="col-lg-8">
+        <div class="section-card">
+            <div class="section-title"><i class="bi bi-graph-up text-purple me-2" style="color:#7c3aed;"></i>Pesanan 7 Hari Terakhir</div>
+            <canvas id="grafikPesanan" height="100"></canvas>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="section-card h-100">
+            <div class="section-title"><i class="bi bi-shop-window me-2" style="color:#7c3aed;"></i>Status Semua Warung</div>
+            {% for warung in semua_warung %}
+            <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                <div>
+                    <div style="font-size:0.85rem; font-weight:600; color:#1e2d3d;">{{ warung.nama_kantin }}</div>
+                    <div style="font-size:0.72rem; color:#8a94a6;">{{ warung.lokasi }}</div>
+                    {% if warung.status_keramaian_updated_at %}
+                    <div style="font-size:0.68rem; color:#a0aab4; margin-top:2px;">
+                        <i class="bi bi-clock-history me-1"></i>{{ warung.status_keramaian_updated_at|timesince }} lalu
+                    </div>
+                    {% endif %}
+                </div>
+                <span class="badge-status
+                    {% if warung.status_keramaian == 'Sepi' %}badge-sepi
+                    {% elif warung.status_keramaian == 'Ramai' %}badge-ramai
+                    {% else %}badge-normal{% endif %}">
+                    {{ warung.status_keramaian }}
+                </span>
+            </div>
+            {% empty %}
+            <p class="text-muted small">Belum ada warung terdaftar.</p>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- ===== PESANAN TERBARU ===== -->
+<div class="section-card">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div class="section-title mb-0"><i class="bi bi-clock-history me-2" style="color:#7c3aed;"></i>Pesanan Terbaru (Semua Warung)</div>
+        <a href="{% url 'budget:admin_laporan' %}" class="btn btn-sm" style="background:#7c3aed; color:white; border-radius:8px; font-size:0.78rem;">Lihat Laporan</a>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Mahasiswa</th>
+                    <th>Warung</th>
+                    <th>Total</th>
+                    <th>Status</th>
+                    <th>Waktu</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in pesanan_terbaru %}
+                <tr>
+                    <td class="text-muted">{{ p.id }}</td>
+                    <td>{{ p.mahasiswa.username }}</td>
+                    <td>{{ p.warung.nama_kantin }}</td>
+                    <td>Rp {{ p.total_harga|floatformat:0 }}</td>
+                    <td>
+                        <span class="badge-status badge-{{ p.status }}">{{ p.get_status_display }}</span>
+                    </td>
+                    <td class="text-muted" style="font-size:0.78rem;">{{ p.waktu_pesan|date:"d M, H:i" }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6" class="text-center text-muted py-4">Belum ada pesanan.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const raw = {{ grafik_json|safe }};
+const labels = raw.map(d => {
+    const dt = new Date(d.tgl);
+    return dt.toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short' });
+});
+const data = raw.map(d => d.jumlah);
+
+new Chart(document.getElementById('grafikPesanan'), {
+    type: 'bar',
+    data: {
+        labels: labels,
+        datasets: [{
+            label: 'Jumlah Pesanan',
+            data: data,
+            backgroundColor: 'rgba(124,58,237,0.15)',
+            borderColor: '#7c3aed',
+            borderWidth: 2,
+            borderRadius: 8,
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+            y: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: '#f1f5f9' } },
+            x: { grid: { display: false } }
+        }
+    }
+});
+</script>
+{% endblock %}

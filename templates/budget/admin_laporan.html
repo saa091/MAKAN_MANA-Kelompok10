@@ -1,0 +1,298 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Laporan — MakanMana{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-1">
+  <div>
+    <h4 class="fw-bold mb-0">Laporan</h4>
+    <small class="text-muted">Grafik transaksi, menu terpopuler, warung paling ramai</small>
+  </div>
+  <div class="d-flex align-items-center gap-2">
+    <a href="{% url 'budget:notifikasi' %}" class="btn btn-light btn-sm position-relative">
+      <i class="bi bi-bell"></i>
+      {% if notif_count > 0 %}<span class="badge bg-danger position-absolute top-0 start-100 translate-middle">{{notif_count}}</span>{% endif %}
+    </a>
+    <span class="text-muted small"><i class="bi bi-calendar3 me-1"></i>{% now "d M Y" %}</span>
+  </div>
+</div>
+<hr class="mt-1">
+
+<!-- FILTER RENTANG -->
+<div class="d-flex gap-2 mb-4 flex-wrap">
+  <a href="?rentang=7"  class="btn btn-sm {% if rentang == '7'  %}btn-purple{% else %}btn-outline-secondary{% endif %}">7 Hari</a>
+  <a href="?rentang=30" class="btn btn-sm {% if rentang == '30' %}btn-purple{% else %}btn-outline-secondary{% endif %}">30 Hari</a>
+  <a href="?rentang=90" class="btn btn-sm {% if rentang == '90' %}btn-purple{% else %}btn-outline-secondary{% endif %}">90 Hari</a>
+  <a href="?rentang=365" class="btn btn-sm {% if rentang == '365' %}btn-purple{% else %}btn-outline-secondary{% endif %}">1 Tahun</a>
+</div>
+
+<!-- STAT CARDS -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="card border-0 shadow-sm text-center py-3">
+      <h5 class="fw-bold text-purple mb-0">Rp {{ total_transaksi|intcomma }}</h5>
+      <small class="text-muted">Total Transaksi</small>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card border-0 shadow-sm text-center py-3">
+      <h5 class="fw-bold text-success mb-0">{{ total_pesanan_selesai }}</h5>
+      <small class="text-muted">Pesanan Selesai</small>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card border-0 shadow-sm text-center py-3">
+      <h5 class="fw-bold text-warning mb-0">{{ total_pesanan_pending }}</h5>
+      <small class="text-muted">Masih Pending</small>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card border-0 shadow-sm text-center py-3">
+      <h5 class="fw-bold text-info mb-0">Rp {{ rata_nilai_pesanan|floatformat:0|intcomma }}</h5>
+      <small class="text-muted">Rata-rata / Pesanan</small>
+    </div>
+  </div>
+</div>
+
+<!-- GRAFIK TRANSAKSI BULANAN -->
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body">
+    <h6 class="fw-semibold mb-3"><i class="bi bi-graph-up me-1 text-purple"></i>Transaksi Bulanan</h6>
+    <div id="grafikTransaksiWrap" style="position:relative; height:280px;">
+      <canvas id="grafikTransaksi"></canvas>
+    </div>
+    <!-- Pesan fallback jika data kosong -->
+    <p id="grafikEmptyMsg" class="text-muted text-center small mt-3 d-none">
+      Belum ada transaksi pada rentang waktu ini.
+    </p>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <!-- MENU TERPOPULER -->
+  <div class="col-lg-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <h6 class="fw-semibold mb-3">🔥 Menu Terpopuler</h6>
+        {% for m in menu_populer %}
+        <div class="d-flex justify-content-between align-items-center border-bottom py-2">
+          <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-purple-light text-purple rounded-circle" style="width:28px;height:28px;line-height:20px;text-align:center">{{ forloop.counter }}</span>
+            <div>
+              <div class="fw-semibold small">{{ m.menu__nama_makanan }}</div>
+              <small class="text-muted">{{ m.menu__kantin__nama_kantin }}</small>
+            </div>
+          </div>
+          <span class="fw-bold text-purple small">{{ m.total_terjual }}x</span>
+        </div>
+        {% empty %}
+        <p class="text-muted small">Belum ada data menu.</p>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- WARUNG PALING RAMAI -->
+  <div class="col-lg-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <h6 class="fw-semibold mb-3">🏆 Warung Paling Ramai</h6>
+        {% for w in warung_ramai %}
+        <div class="d-flex justify-content-between align-items-center border-bottom py-2">
+          <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-purple-light text-purple rounded-circle" style="width:28px;height:28px;line-height:20px;text-align:center">{{ forloop.counter }}</span>
+            <div>
+              <div class="fw-semibold small">{{ w.warung__nama_kantin }}</div>
+              <small class="text-muted">Rp {{ w.total_pendapatan|default:0|intcomma }}</small>
+            </div>
+          </div>
+          <span class="fw-bold text-purple small">{{ w.total_pesanan }} pesanan</span>
+        </div>
+        {% empty %}
+        <p class="text-muted small">Belum ada data warung.</p>
+        {% endfor %}
+
+        {% if warung_ramai %}
+        <div id="grafikWarungWrap" class="mt-3" style="position:relative; height:200px;">
+          <canvas id="grafikWarung"></canvas>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+
+// 1. GRAFIK TRANSAKSI BULANAN (Line Chart)
+
+(function () {
+  const raw = {{ transaksi_json|safe }};
+  const labels = raw.map(d => d.bulan || d.tgl || '');
+  const data   = raw.map(d => d.total || d.pendapatan || 0);
+
+  // Jika tidak ada data sama sekali
+  if (data.length === 0 || data.every(v => v === 0)) {
+    document.getElementById('grafikTransaksiWrap').classList.add('d-none');
+    document.getElementById('grafikEmptyMsg').classList.remove('d-none');
+    return;
+  }
+
+  const canvas = document.getElementById('grafikTransaksi');
+  const ctx    = canvas.getContext('2d');
+
+  // Gradient fill
+  const gradient = ctx.createLinearGradient(0, 0, 0, 280);
+  gradient.addColorStop(0, 'rgba(124,58,237,0.28)');
+  gradient.addColorStop(1, 'rgba(124,58,237,0.01)');
+
+  // Untuk data satu titik: tampilkan sebagai bar agar tidak kosong
+  const chartType = data.length === 1 ? 'bar' : 'line';
+
+  new Chart(canvas, {
+    type: chartType,
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Transaksi (Rp)',
+        data: data,
+        borderColor: '#7c3aed',
+        backgroundColor: chartType === 'bar' ? 'rgba(124,58,237,0.7)' : gradient,
+        fill: chartType === 'line',
+        tension: 0.4,
+        pointRadius: data.length <= 4 ? 7 : 4,
+        pointHoverRadius: 9,
+        pointBackgroundColor: '#7c3aed',
+        pointBorderColor: '#ffffff',
+        pointBorderWidth: 2,
+        borderWidth: 2.5,
+        // Bar-specific
+        borderRadius: chartType === 'bar' ? 8 : undefined,
+        borderSkipped: false,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: { duration: 600, easing: 'easeInOutQuart' },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1e1b4b',
+          titleColor: '#c4b5fd',
+          bodyColor: '#fff',
+          padding: 12,
+          cornerRadius: 8,
+          callbacks: {
+            title: items => items[0].label,
+            label: ctx => '  Rp ' + ctx.parsed.y.toLocaleString('id-ID')
+          }
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          grace: '10%',
+          grid: { color: '#f1f5f9', drawBorder: false },
+          border: { dash: [4, 4] },
+          ticks: {
+            maxTicksLimit: 6,
+            color: '#6b7280',
+            callback: v => {
+              if (v >= 1000000) return 'Rp ' + (v / 1000000).toFixed(1) + 'jt';
+              if (v >= 1000)    return 'Rp ' + (v / 1000).toFixed(0) + 'rb';
+              return 'Rp ' + v;
+            }
+          }
+        },
+        x: {
+          grid: { display: false },
+          offset: data.length <= 2,
+          ticks: { color: '#6b7280', maxRotation: 45, minRotation: 0 }
+        }
+      },
+      layout: { padding: { left: 4, right: 12, top: 8, bottom: 4 } }
+    }
+  });
+})();
+
+// 2. GRAFIK WARUNG (Horizontal Bar)
+(function () {
+  const raw = {{ warung_ramai_json|safe }};
+  if (!raw || raw.length === 0) return;
+
+  const COLORS = [
+    '#7c3aed','#00ced1','#f59e0b','#10b981',
+    '#ef4444','#3b82f6','#ec4899','#8b5cf6',
+    '#14b8a6','#f97316'
+  ];
+
+  // Tinggi dinamis: 44px per bar, minimal 160px
+  const barH = Math.max(160, raw.length * 44);
+  document.getElementById('grafikWarungWrap').style.height = barH + 'px';
+
+  new Chart(document.getElementById('grafikWarung'), {
+    type: 'bar',
+    data: {
+      labels: raw.map(w => w.nama),
+      datasets: [{
+        data: raw.map(w => w.pesanan),
+        backgroundColor: raw.map((_, i) => COLORS[i % COLORS.length]),
+        borderRadius: { topRight: 7, bottomRight: 7 },
+        borderSkipped: false,
+        barPercentage: 0.65,
+        categoryPercentage: 0.85,
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: { duration: 500 },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1e1b4b',
+          titleColor: '#c4b5fd',
+          bodyColor: '#fff',
+          padding: 10,
+          cornerRadius: 8,
+          callbacks: {
+            label: ctx => '  ' + ctx.parsed.x + ' pesanan'
+          }
+        }
+      },
+      scales: {
+        x: {
+          beginAtZero: true,
+          grid: { color: '#f1f5f9' },
+          border: { dash: [4, 4] },
+          ticks: {
+            stepSize: 1,
+            color: '#6b7280',
+            precision: 0,
+          }
+        },
+        y: {
+          grid: { display: false },
+          ticks: {
+            color: '#374151',
+            font: { size: 12, weight: '500' },
+            // Potong label panjang
+            callback: function(val) {
+              const lbl = this.getLabelForValue(val);
+              return lbl.length > 18 ? lbl.slice(0, 16) + '…' : lbl;
+            }
+          }
+        }
+      },
+      layout: { padding: { right: 16, top: 4, bottom: 4 } }
+    }
+  });
+})();
+</script>
+{% endblock %}

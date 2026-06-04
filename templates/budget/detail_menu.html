@@ -1,0 +1,406 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}{{ menu.nama_makanan }} — MakanMana{% endblock %}
+{% block page_title %}Detail Menu{% endblock %}
+{% block page_subtitle %}{{ menu.kantin.nama_kantin }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.menu-hero-img {
+    width: 100%;
+    height: 320px;
+    object-fit: cover;
+    border-radius: 16px 16px 0 0;
+    display: block;
+}
+.menu-hero-placeholder {
+    height: 220px;
+    background: linear-gradient(135deg, #f0feff, #e0fffe);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 16px 16px 0 0;
+}
+.detail-card {
+    border-radius: 16px;
+    overflow: hidden;
+    border: none;
+}
+.btn-add-cart {
+    background: #00ced1;
+    color: #fff;
+    border: none;
+    border-radius: 50px;
+    font-weight: 600;
+    flex: 1;
+    transition: background 0.2s;
+}
+.btn-add-cart:hover {
+    background: #00b0b3;
+    color: #fff;
+}
+.review-item {
+    padding: 14px 0;
+    border-bottom: 1px solid #f1f3f5;
+}
+.review-item:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+.qty-stepper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.qty-stepper input {
+    width: 64px;
+    text-align: center;
+    border: 1.5px solid #dee2e6;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 1rem;
+    padding: 6px 4px;
+}
+.qty-stepper input:focus {
+    border-color: #00ced1;
+    box-shadow: 0 0 0 3px rgba(0,206,209,0.12);
+    outline: none;
+}
+.qty-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: 1.5px solid #dee2e6;
+    background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: all 0.15s;
+    color: #495057;
+}
+.qty-btn:hover {
+    background: #00ced1;
+    border-color: #00ced1;
+    color: #fff;
+}
+.sidebar-info {
+    position: sticky;
+    top: 80px;
+}
+
+/* ── Tombol Laporkan ── */
+.btn-laporkan {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.72rem;
+    color: #adb5bd;
+    background: none;
+    border: none;
+    padding: 2px 6px;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-decoration: none;
+    line-height: 1;
+}
+.btn-laporkan:hover {
+    color: #dc3545;
+    background: #fff1f2;
+}
+.btn-laporkan.sudah-dilaporkan {
+    color: #dc3545;
+    cursor: default;
+    pointer-events: none;
+}
+
+/* ── Toast notifikasi ── */
+.toast-laporkan {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 9999;
+    background: #212529;
+    color: #fff;
+    padding: 12px 20px;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    opacity: 0;
+    transform: translateY(12px);
+    transition: all 0.3s ease;
+    pointer-events: none;
+}
+.toast-laporkan.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+.toast-laporkan.success { border-left: 4px solid #00ced1; }
+.toast-laporkan.error   { border-left: 4px solid #dc3545; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <!-- Kolom Kiri: Detail Menu -->
+    <div class="col-lg-7">
+        <div class="card detail-card shadow-sm mb-4">
+            <!-- Gambar Hero -->
+            {% if menu.gambar %}
+            <img src="{{ menu.gambar.url }}" alt="{{ menu.nama_makanan }}" class="menu-hero-img">
+            {% else %}
+            <div class="menu-hero-placeholder">
+                <i class="bi bi-image text-muted" style="font-size:4rem; opacity:0.3;"></i>
+            </div>
+            {% endif %}
+
+            <!-- Info + Form -->
+            <div class="p-4">
+                <!-- Nama & Harga -->
+                <div class="d-flex justify-content-between align-items-start mb-2 flex-wrap gap-2">
+                    <div>
+                        <h3 class="fw-bold text-dark mb-1">{{ menu.nama_makanan }}</h3>
+                        {% if menu.label %}
+                        <span class="badge bg-info-subtle text-info rounded-pill px-3">{{ menu.label }}</span>
+                        {% endif %}
+                    </div>
+                    <h3 class="fw-bold mb-0" style="color:#00ced1; white-space:nowrap;">
+                        Rp {{ menu.harga|intcomma }}
+                    </h3>
+                </div>
+
+                <!-- Rating -->
+                {% if avg_rating > 0 %}
+                <div class="d-flex align-items-center gap-1 mb-3">
+                    {% for i in "12345" %}
+                        {% if forloop.counter <= avg_rating %}
+                            <i class="bi bi-star-fill text-warning" style="font-size:0.9rem;"></i>
+                        {% else %}
+                            <i class="bi bi-star text-muted" style="font-size:0.9rem;"></i>
+                        {% endif %}
+                    {% endfor %}
+                    <span class="text-muted small ms-1">{{ avg_rating }} ({{ menu.reviews.count }} ulasan)</span>
+                </div>
+                {% endif %}
+
+                <!-- Deskripsi -->
+                <p class="text-muted mb-2" style="line-height:1.7;">
+                    {{ menu.deskripsi|default:"Menu lezat dan mengenyangkan untuk menemani harimu." }}
+                </p>
+
+                <!-- Terjual -->
+                <p class="text-muted small mb-4">
+                    <i class="bi bi-fire me-1 text-danger"></i>Terjual {{ menu.jumlah_terjual }}x
+                </p>
+
+                <hr class="mb-4">
+
+                <!-- Form Tambah Keranjang -->
+                <form action="{% url 'budget:tambah_keranjang' menu.id %}" method="POST">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{% url 'budget:keranjang' %}">
+
+                    <!-- Jumlah Stepper -->
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold small text-dark mb-2">Jumlah</label>
+                        <div class="qty-stepper">
+                            <button type="button" class="qty-btn" onclick="changeQty(-1)">−</button>
+                            <input type="number" name="jumlah" id="qtyInput" value="1" min="1" max="10">
+                            <button type="button" class="qty-btn" onclick="changeQty(1)">+</button>
+                            <small class="text-muted ms-1">maks. 10</small>
+                        </div>
+                    </div>
+
+                    <!-- Catatan -->
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold small text-dark mb-1">
+                            Catatan Khusus
+                            <span class="text-muted fw-normal">(opsional)</span>
+                        </label>
+                        <textarea name="catatan" class="form-control rounded-3 bg-light border-0" rows="2"
+                                  placeholder="Contoh: Gak pake pedes, nasi dikit aja..."></textarea>
+                    </div>
+
+                    <!-- Total + Tombol -->
+                    <div class="p-3 rounded-3 mb-3 d-flex align-items-center justify-content-between"
+                         style="background:#f0feff; border:1px solid #b2eff0;">
+                        <div>
+                            <small class="text-muted d-block" style="font-size:0.75rem;">Total</small>
+                            <span class="fw-bold fs-5 text-dark" id="totalHarga">
+                                Rp {{ menu.harga|intcomma }}
+                            </span>
+                        </div>
+                        <small class="text-muted" style="font-size:0.75rem;">Bayar di warung</small>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-add-cart py-2 px-4">
+                            <i class="bi bi-cart-plus me-2"></i>Tambah ke Keranjang
+                        </button>
+                        <a href="{% url 'budget:katalog_menu' menu.kantin.id %}"
+                           class="btn btn-outline-secondary rounded-pill px-4">Kembali</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Ulasan -->
+        <div class="card border-0 shadow-sm p-4" style="border-radius:16px;">
+            <h5 class="fw-bold mb-4">
+                <i class="bi bi-chat-square-text me-2"></i>Ulasan Pembeli
+            </h5>
+
+            {% for review in reviews %}
+            <div class="review-item">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <span class="fw-bold small text-dark">{{ review.mahasiswa.username }}</span>
+                    <div class="d-flex align-items-center gap-2">
+                        <small class="text-muted">{{ review.waktu_review|timesince }} lalu</small>
+
+                        {# ── Tombol Laporkan: tampil untuk user login selain pemilik review ── #}
+                        {% if user.is_authenticated and user != review.mahasiswa %}
+                            {% if review.dilaporkan %}
+                                {# Sudah dilaporkan — tampilkan bendera merah non-klik #}
+                                <span class="btn-laporkan sudah-dilaporkan" title="Sudah dilaporkan">
+                                    <i class="bi bi-flag-fill"></i>
+                                    <span>Dilaporkan</span>
+                                </span>
+                            {% else %}
+                                {# Belum dilaporkan — tombol aktif dengan AJAX #}
+                                <button
+                                    class="btn-laporkan"
+                                    data-review-id="{{ review.id }}"
+                                    data-url="{% url 'budget:laporkan_review' review.id %}"
+                                    onclick="laporkanReview(this)"
+                                    title="Laporkan ulasan ini">
+                                    <i class="bi bi-flag"></i>
+                                    <span>Laporkan</span>
+                                </button>
+                            {% endif %}
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Bintang -->
+                <div class="mb-1">
+                    {% for i in "12345" %}
+                        {% if forloop.counter <= review.bintang %}
+                            <i class="bi bi-star-fill text-warning" style="font-size:0.75rem;"></i>
+                        {% else %}
+                            <i class="bi bi-star text-muted" style="font-size:0.75rem;"></i>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+                <p class="text-muted small mb-0">{{ review.komentar }}</p>
+            </div>
+            {% empty %}
+            <div class="text-center py-3 text-muted">
+                <i class="bi bi-chat-square-text d-block mb-2" style="font-size:2rem; opacity:0.3;"></i>
+                <p class="small mb-0">Belum ada ulasan untuk menu ini.</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Kolom Kanan: Info Warung -->
+    <div class="col-lg-5">
+        <div class="sidebar-info">
+            <div class="card border-0 shadow-sm" style="border-radius:16px; overflow:hidden;">
+                {% if menu.kantin.foto_warung %}
+                <img src="{{ menu.kantin.foto_warung.url }}" alt="{{ menu.kantin.nama_kantin }}"
+                     style="width:100%; height:160px; object-fit:cover;">
+                {% endif %}
+                <div class="p-4">
+                    <h6 class="fw-bold mb-1">Info Warung</h6>
+                    <h5 class="fw-bold text-dark mb-2">{{ menu.kantin.nama_kantin }}</h5>
+                    <p class="text-muted small mb-1">
+                        <i class="bi bi-geo-alt me-1"></i>{{ menu.kantin.lokasi }}
+                    </p>
+                    <p class="text-muted small mb-3">
+                        <i class="bi bi-clock me-1"></i>{{ menu.kantin.jam_buka|default:"—" }}
+                    </p>
+                    <a href="{% url 'budget:katalog_menu' menu.kantin.id %}"
+                       class="btn btn-outline-secondary btn-sm rounded-pill w-100">
+                        <i class="bi bi-grid me-1"></i>Lihat Semua Menu Warung Ini
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast notifikasi -->
+<div class="toast-laporkan" id="toastLaporkan"></div>
+
+<script>
+/* ── Kalkulasi total harga ── */
+var hargaSatuan = {{ menu.harga }};
+function changeQty(delta) {
+    var inp = document.getElementById('qtyInput');
+    var val = Math.min(10, Math.max(1, parseInt(inp.value || 1) + delta));
+    inp.value = val;
+    updateTotal();
+}
+function updateTotal() {
+    var inp = document.getElementById('qtyInput');
+    var qty = Math.min(10, Math.max(1, parseInt(inp.value || 1)));
+    inp.value = qty;
+    var total = qty * hargaSatuan;
+    document.getElementById('totalHarga').textContent =
+        'Rp ' + total.toLocaleString('id-ID');
+}
+document.addEventListener('DOMContentLoaded', function() {
+    var inp = document.getElementById('qtyInput');
+    if (inp) inp.addEventListener('input', updateTotal);
+});
+
+/* ── Toast helper ── */
+function showToast(pesan, tipe) {
+    var t = document.getElementById('toastLaporkan');
+    t.textContent = pesan;
+    t.className = 'toast-laporkan ' + tipe + ' show';
+    setTimeout(function() { t.className = 'toast-laporkan'; }, 3000);
+}
+
+/* ── Laporkan review via AJAX (tanpa reload halaman) ── */
+function laporkanReview(btn) {
+    var reviewId = btn.dataset.reviewId;
+    var url      = btn.dataset.url;
+
+    // Cegah double-klik
+    btn.disabled = true;
+
+    fetch(url, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+    })
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+        if (data.status === 'ok') {
+            // Ubah tombol jadi "Dilaporkan" tanpa reload
+            btn.outerHTML =
+                '<span class="btn-laporkan sudah-dilaporkan" title="Sudah dilaporkan">' +
+                '<i class="bi bi-flag-fill"></i> <span>Dilaporkan</span></span>';
+            showToast('✓ Laporan terkirim ke admin.', 'success');
+        } else if (data.status === 'already') {
+            showToast('Review ini sudah pernah dilaporkan.', 'error');
+            btn.disabled = false;
+        } else {
+            showToast('Gagal melaporkan. Coba lagi.', 'error');
+            btn.disabled = false;
+        }
+    })
+    .catch(function() {
+        showToast('Terjadi kesalahan. Coba lagi.', 'error');
+        btn.disabled = false;
+    });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buat Akun Baru - Kelola Budget Makan</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #00c2cb;
+            --primary-hover: #00a4ad;
+            --bg-gradient: linear-gradient(-45deg, #111e25, #17313a, #0b252e, #1a3c47);
+        }
+        body {
+            font-family: 'Poppins', sans-serif;
+            margin: 0; min-height: 100vh;
+            display: flex; align-items: center; justify-content: center;
+            position: relative; background: var(--bg-gradient);
+            background-size: 400% 400%; animation: gradientMove 12s ease infinite;
+            overflow-y: auto; padding: 2rem 0;
+        }
+        body::before {
+            content: ""; position: absolute; width: 200%; height: 200%; top: -50%; left: -50%;
+            background-image: radial-gradient(circle, rgba(0,194,203,0.15) 1px, transparent 1px),
+                              radial-gradient(circle, rgba(255,255,255,0.05) 2px, transparent 2px);
+            background-size: 40px 40px, 80px 80px; animation: particleMove 60s linear infinite; z-index: 1;
+        }
+        @keyframes gradientMove { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+        @keyframes particleMove { 0% { transform: rotate(0deg) translate(0,0); } 100% { transform: rotate(360deg) translate(-50px,-50px); } }
+        .auth-card {
+            background: rgba(255,255,255,0.95); border: none; border-radius: 24px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.3); backdrop-filter: blur(12px);
+            max-width: 460px; width: 100%; padding: 2.5rem 2.2rem; position: relative; z-index: 10;
+            animation: cardEnter 0.7s cubic-bezier(0.25,1,0.5,1) forwards;
+        }
+        @keyframes cardEnter { from { opacity: 0; transform: translateY(40px); } to { opacity: 1; transform: translateY(0); } }
+        .brand-avatar { width: 72px; height: 72px; background: rgba(0,194,203,0.12); color: var(--primary-color); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2.2rem; margin: 0 auto 1.2rem; }
+        .form-label { font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; color: #344767; }
+        .form-control { border-radius: 12px; padding: 0.75rem 1rem; border: 1.5px solid #d2d6da; transition: all 0.25s; }
+        .form-control:focus { border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(0,194,203,0.25); }
+        .form-control.is-invalid { border-color: #dc3545; }
+        .form-control.is-valid { border-color: #198754; }
+        .password-container { position: relative; }
+        .password-container .form-control { padding-right: 3rem; }
+        .toggle-password-btn { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #a0aec0; cursor: pointer; font-size: 1rem; z-index: 5; }
+        .toggle-password-btn:hover { color: var(--primary-color); }
+        .btn-submit { background: linear-gradient(135deg, var(--primary-color), var(--primary-hover)); color: #fff; border: none; border-radius: 12px; padding: 0.8rem; font-weight: 600; box-shadow: 0 4px 15px rgba(0,194,203,0.2); transition: all 0.3s; }
+        .btn-submit:hover { background: linear-gradient(135deg, var(--primary-hover), #008b93); color: #fff; transform: translateY(-2px); }
+        .hint-text { font-size: 0.72rem; color: #718096; margin-top: 0.3rem; }
+        .hint-text ul { padding-left: 1.1rem; margin: 0; }
+        .error-banner { background: #fee2e2; color: #dc2626; border-left: 4px solid #dc2626; border-radius: 8px; padding: 0.75rem 1rem; font-size: 0.83rem; margin-bottom: 1.2rem; }
+        .field-error { color: #dc2626; font-size: 0.78rem; margin-top: 0.25rem; }
+        .strength-bar { height: 4px; border-radius: 4px; background: #e2e8f0; margin-top: 6px; overflow: hidden; }
+        .strength-fill { height: 100%; border-radius: 4px; transition: width 0.3s, background 0.3s; width: 0; }
+        .strength-label { font-size: 0.7rem; margin-top: 3px; }
+    </style>
+</head>
+<body>
+    <div class="auth-card">
+        <div class="text-center">
+            <div class="brand-avatar"><i class="fa-solid fa-user-plus"></i></div>
+            <h3 class="fw-bold mb-1">Buat Akun Baru</h3>
+            <p class="text-muted small mb-4">Daftar untuk mulai mengatur pengeluaran makanmu</p>
+        </div>
+
+        {% if form.non_field_errors or messages %}
+        <div class="error-banner">
+            <i class="fa-solid fa-circle-exclamation me-2"></i>
+            {% for msg in messages %}{{ msg }}{% endfor %}
+            {% for err in form.non_field_errors %}{{ err }}{% endfor %}
+        </div>
+        {% endif %}
+
+        <form method="POST" action="{% url 'budget:register' %}" novalidate id="registerForm">
+            {% csrf_token %}
+
+            <!-- Nama Pengguna -->
+            <div class="mb-3">
+                <label class="form-label">Nama Pengguna</label>
+                <input type="text" name="username" id="id_username"
+                       class="form-control {% if form.username.errors %}is-invalid{% endif %}"
+                       value="{{ form.username.value|default:'' }}"
+                       placeholder="Contoh: luqman123" maxlength="150" required
+                       autocomplete="username">
+                {% if form.username.errors %}
+                    <div class="field-error"><i class="fa-solid fa-triangle-exclamation me-1"></i>{{ form.username.errors.0 }}</div>
+                {% else %}
+                    <div class="hint-text">Maks. 150 karakter. Boleh huruf, angka, dan @/./+/-/_</div>
+                {% endif %}
+            </div>
+
+            <!-- Email -->
+            <div class="mb-3">
+                <label class="form-label">Email <span class="text-muted fw-normal">(opsional, untuk pemulihan akun)</span></label>
+                <input type="email" name="email" id="id_email"
+                       class="form-control {% if form.email.errors %}is-invalid{% endif %}"
+                       value="{{ form.email.value|default:'' }}"
+                       placeholder="contoh@email.com"
+                       autocomplete="email">
+                {% if form.email.errors %}
+                    <div class="field-error"><i class="fa-solid fa-triangle-exclamation me-1"></i>{{ form.email.errors.0 }}</div>
+                {% else %}
+                    <div class="hint-text">Digunakan untuk lupa sandi. Pastikan email aktif.</div>
+                {% endif %}
+            </div>
+
+            <!-- Sandi -->
+            <div class="mb-3">
+                <label class="form-label">Sandi</label>
+                <div class="password-container">
+                    <input type="password" name="password1" id="id_password1"
+                           class="form-control {% if form.password1.errors %}is-invalid{% endif %}"
+                           placeholder="Minimal 8 karakter" required
+                           autocomplete="new-password"
+                           oninput="checkStrength(this.value)">
+                    <button type="button" class="toggle-password-btn" onclick="togglePass('id_password1','eye1')">
+                        <i class="fa-regular fa-eye" id="eye1"></i>
+                    </button>
+                </div>
+                <div class="strength-bar"><div class="strength-fill" id="strengthFill"></div></div>
+                <div class="strength-label text-muted" id="strengthLabel"></div>
+                {% if form.password1.errors %}
+                    <div class="field-error"><i class="fa-solid fa-triangle-exclamation me-1"></i>{{ form.password1.errors.0 }}</div>
+                {% else %}
+                    <div class="hint-text">
+                        <ul>
+                            <li>Tidak boleh terlalu mirip informasi pribadi.</li>
+                            <li>Minimal 8 karakter.</li>
+                            <li>Bukan kata sandi umum.</li>
+                            <li>Tidak boleh sepenuhnya angka.</li>
+                        </ul>
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Konfirmasi Sandi -->
+            <div class="mb-4">
+                <label class="form-label">Konfirmasi Sandi</label>
+                <div class="password-container">
+                    <input type="password" name="password2" id="id_password2"
+                           class="form-control {% if form.password2.errors %}is-invalid{% endif %}"
+                           placeholder="Ulangi sandi di atas" required
+                           autocomplete="new-password"
+                           oninput="checkMatch()">
+                    <button type="button" class="toggle-password-btn" onclick="togglePass('id_password2','eye2')">
+                        <i class="fa-regular fa-eye" id="eye2"></i>
+                    </button>
+                </div>
+                {% if form.password2.errors %}
+                    <div class="field-error"><i class="fa-solid fa-triangle-exclamation me-1"></i>{{ form.password2.errors.0 }}</div>
+                {% else %}
+                    <div class="hint-text" id="matchHint">Masukkan sandi yang sama seperti di atas.</div>
+                {% endif %}
+            </div>
+
+            <button type="submit" class="btn btn-submit w-100 mb-4">
+                <i class="fa-solid fa-user-check me-2"></i>Daftar Sekarang
+            </button>
+            <div class="text-center small text-muted">
+                Sudah punya akun?
+                <a href="{% url 'login' %}" style="color: var(--primary-color); font-weight: 600; text-decoration: none;">Masuk di sini</a>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        function togglePass(inputId, iconId) {
+            const inp = document.getElementById(inputId);
+            const ico = document.getElementById(iconId);
+            if (inp.type === 'password') { inp.type = 'text'; ico.className = 'fa-solid fa-eye-slash'; }
+            else { inp.type = 'password'; ico.className = 'fa-regular fa-eye'; }
+        }
+
+        function checkStrength(val) {
+            const fill = document.getElementById('strengthFill');
+            const label = document.getElementById('strengthLabel');
+            let score = 0;
+            if (val.length >= 8) score++;
+            if (/[A-Z]/.test(val)) score++;
+            if (/[0-9]/.test(val)) score++;
+            if (/[^A-Za-z0-9]/.test(val)) score++;
+            const levels = [
+                { w: '0%', color: '#e2e8f0', text: '' },
+                { w: '25%', color: '#ef4444', text: 'Sangat Lemah' },
+                { w: '50%', color: '#f97316', text: 'Lemah' },
+                { w: '75%', color: '#eab308', text: 'Sedang' },
+                { w: '100%', color: '#22c55e', text: 'Kuat' },
+            ];
+            const lvl = val.length === 0 ? levels[0] : levels[score];
+            fill.style.width = lvl.w;
+            fill.style.background = lvl.color;
+            label.textContent = lvl.text;
+            label.style.color = lvl.color;
+        }
+
+        function checkMatch() {
+            const p1 = document.getElementById('id_password1').value;
+            const p2 = document.getElementById('id_password2').value;
+            const hint = document.getElementById('matchHint');
+            if (!p2) { hint.textContent = 'Masukkan sandi yang sama seperti di atas.'; hint.style.color = '#718096'; return; }
+            if (p1 === p2) { hint.innerHTML = '<i class="fa-solid fa-check me-1"></i>Sandi cocok!'; hint.style.color = '#22c55e'; }
+            else { hint.innerHTML = '<i class="fa-solid fa-xmark me-1"></i>Sandi tidak cocok.'; hint.style.color = '#ef4444'; }
+        }
+    </script>
+</body>
+</html>

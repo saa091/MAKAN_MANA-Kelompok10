@@ -1,0 +1,201 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Keranjang — MakanMana{% endblock %}
+{% block page_title %}Keranjang Belanja{% endblock %}
+{% block page_subtitle %}Periksa pesananmu sebelum memesan{% endblock %}
+
+{% block extra_css %}
+<style>
+.cart-item-row {
+    transition: background 0.15s;
+}
+.cart-item-row:hover {
+    background: #f8fdfd;
+}
+.qty-input {
+    width: 56px;
+    text-align: center;
+    border: 1.5px solid #dee2e6;
+    border-radius: 8px;
+    font-weight: 600;
+    padding: 4px;
+    font-size: 0.9rem;
+}
+.qty-input:focus {
+    outline: none;
+    border-color: #00ced1;
+    box-shadow: 0 0 0 3px rgba(0,206,209,0.12);
+}
+.summary-card {
+    border-radius: 16px;
+    border: none;
+    position: sticky;
+    top: 80px;
+}
+.btn-order {
+    background: #00ced1;
+    color: #fff;
+    border: none;
+    border-radius: 50px;
+    font-weight: 600;
+    transition: background 0.2s;
+}
+.btn-order:hover:not(:disabled) {
+    background: #00b0b3;
+    color: #fff;
+}
+.btn-order:disabled {
+    background: #b2dfdb;
+    color: #fff;
+    cursor: not-allowed;
+}
+.info-pembayaran {
+    background: #e0fffe;
+    border: 1px solid #b2eff0;
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 0.8rem;
+    color: #00838f;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <!-- Daftar Item -->
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm" style="border-radius:16px; overflow:hidden;">
+            <div class="card-header bg-white border-0 pt-4 px-4 pb-3 d-flex align-items-center justify-content-between">
+                <h5 class="fw-bold mb-0">
+                    {{ items.count }} Item di Keranjang
+                </h5>
+                {% if items %}
+                <a href="{% url 'budget:daftar_kantin' %}" class="btn btn-sm btn-outline-secondary rounded-pill">
+                    <i class="bi bi-plus me-1"></i>Tambah
+                </a>
+                {% endif %}
+            </div>
+            <div class="card-body p-0">
+                {% for item in items %}
+                <div class="d-flex align-items-center px-4 py-3 border-bottom cart-item-row">
+                    <!-- Gambar -->
+                    {% if item.menu.gambar %}
+                    <img src="{{ item.menu.gambar.url }}" class="rounded-3 me-3 flex-shrink-0"
+                         style="width:72px; height:72px; object-fit:cover;">
+                    {% else %}
+                    <div class="rounded-3 me-3 bg-light d-flex align-items-center justify-content-center flex-shrink-0"
+                         style="width:72px; height:72px;">
+                        <i class="bi bi-image text-muted"></i>
+                    </div>
+                    {% endif %}
+
+                    <!-- Info -->
+                    <div class="flex-grow-1 overflow-hidden">
+                        <h6 class="fw-bold mb-0 text-dark text-truncate">{{ item.menu.nama_makanan }}</h6>
+                        <small class="text-muted">{{ item.menu.kantin.nama_kantin }}</small>
+                        {% if item.catatan_item %}
+                        <p class="text-muted small mb-0 mt-1 fst-italic" style="font-size:0.78rem;">
+                            "{{ item.catatan_item }}"
+                        </p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Jumlah -->
+                    <div class="mx-3 flex-shrink-0">
+                        <form action="{% url 'budget:update_keranjang' item.id %}" method="POST">
+                            {% csrf_token %}
+                            <input type="number" name="jumlah" value="{{ item.jumlah }}"
+                                   min="0" max="10" class="qty-input"
+                                   onchange="this.form.submit()">
+                        </form>
+                        <div class="text-center" style="font-size:0.68rem; color:#adb5bd; margin-top:2px;">qty</div>
+                    </div>
+
+                    <!-- Harga -->
+                    <div class="text-end me-3 flex-shrink-0">
+                        <div class="fw-bold text-dark">Rp {{ item.subtotal|intcomma }}</div>
+                        <small class="text-muted">@Rp {{ item.menu.harga|intcomma }}</small>
+                    </div>
+
+                    <!-- Hapus -->
+                    <a href="{% url 'budget:hapus_keranjang' item.id %}"
+                       class="btn btn-sm btn-outline-danger rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+                       style="width:34px; height:34px;"
+                       title="Hapus item">
+                        <i class="bi bi-trash3" style="font-size:0.8rem;"></i>
+                    </a>
+                </div>
+                {% empty %}
+                <div class="text-center py-5 px-4">
+                    <i class="bi bi-cart-x text-muted" style="font-size:4rem; opacity:0.3;"></i>
+                    <h5 class="text-muted mt-3 fw-semibold">Keranjang masih kosong</h5>
+                    <p class="text-muted small mb-4">Yuk cari menu dari kantin favoritmu!</p>
+                    <a href="{% url 'budget:daftar_kantin' %}"
+                       class="btn rounded-pill text-white px-4"
+                       style="background:#00ced1;">
+                        <i class="bi bi-shop me-2"></i>Cari Menu
+                    </a>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Ringkasan Pesanan -->
+    {% if items %}
+    <div class="col-lg-4">
+        <div class="card shadow-sm p-4 summary-card">
+            <h5 class="fw-bold mb-4">Ringkasan Pesanan</h5>
+
+            <div class="d-flex justify-content-between mb-2 small">
+                <span class="text-muted">Total Item</span>
+                <span class="fw-semibold">{{ items.count }} item</span>
+            </div>
+            <div class="d-flex justify-content-between mb-2 small">
+                <span class="text-muted">Subtotal</span>
+                <span class="fw-bold text-dark">Rp {{ total|intcomma }}</span>
+            </div>
+            <div class="d-flex justify-content-between mb-3 small">
+                <span class="text-muted">Budget Kamu</span>
+                <span class="fw-bold text-success">Rp {{ budget|intcomma }}</span>
+            </div>
+
+            <hr class="my-2">
+
+            <div class="d-flex justify-content-between mb-4">
+                <span class="fw-bold">Sisa Budget</span>
+                <span class="fw-bold {% if sisa_budget < 0 %}text-danger{% else %}text-success{% endif %} fs-6">
+                    Rp {{ sisa_budget|intcomma }}
+                </span>
+            </div>
+
+            {% if sisa_budget < 0 %}
+            <div class="alert alert-danger rounded-3 small mb-3 py-2">
+                <i class="bi bi-exclamation-triangle me-1"></i>
+                Budget tidak cukup! Kurangi item atau tambah budget terlebih dahulu.
+            </div>
+            {% endif %}
+
+            <!-- Info cara bayar -->
+            <div class="info-pembayaran mb-3">
+                <i class="bi bi-info-circle me-1"></i>
+                Pembayaran dilakukan <strong>langsung di warung</strong> saat ambil pesanan.
+            </div>
+
+            <form action="{% url 'budget:checkout_keranjang' %}" method="POST">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-order w-100 py-2 mb-2"
+                        {% if sisa_budget < 0 %}disabled{% endif %}>
+                    <i class="bi bi-bag-check me-2"></i>Pesan Sekarang
+                </button>
+            </form>
+            <a href="{% url 'budget:daftar_kantin' %}"
+               class="btn btn-outline-secondary w-100 rounded-pill">
+                Tambah Item Lagi
+            </a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

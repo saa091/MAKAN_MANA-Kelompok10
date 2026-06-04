@@ -1,0 +1,152 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Atur Budget — MakanMana{% endblock %}
+{% block page_title %}Atur Budget{% endblock %}
+{% block page_subtitle %}Kelola batas pengeluaran harianmu{% endblock %}
+
+{% block extra_css %}
+<style>
+.budget-card {
+    border-radius: 20px;
+    border: none;
+    max-width: 520px;
+    margin: 0 auto;
+}
+.budget-input-wrap {
+    background: #f8fdfd;
+    border: 2px solid #e0fffe;
+    border-radius: 14px;
+    padding: 0 16px;
+    display: flex;
+    align-items: center;
+    transition: border-color 0.2s;
+}
+.budget-input-wrap:focus-within {
+    border-color: #00ced1;
+    box-shadow: 0 0 0 4px rgba(0,206,209,0.12);
+}
+.budget-input-wrap .prefix {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #6c757d;
+    margin-right: 8px;
+    white-space: nowrap;
+}
+.budget-input-wrap input {
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #212529;
+    padding: 14px 0;
+    width: 100%;
+    outline: none;
+}
+.quick-budget-btn {
+    background: #f0feff;
+    border: 1.5px solid #b2eff0;
+    color: #00838f;
+    border-radius: 50px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    padding: 5px 14px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.quick-budget-btn:hover {
+    background: #00ced1;
+    color: #fff;
+    border-color: #00ced1;
+}
+.btn-simpan {
+    background: #00ced1;
+    color: #fff;
+    border: none;
+    border-radius: 50px;
+    font-weight: 600;
+    padding: 12px 0;
+    transition: background 0.2s;
+}
+.btn-simpan:hover {
+    background: #00b0b3;
+    color: #fff;
+}
+.info-box {
+    background: #fffbea;
+    border: 1px solid #fde68a;
+    border-radius: 12px;
+    padding: 12px 16px;
+    font-size: 0.8rem;
+    color: #92400e;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="budget-card">
+    <div class="card shadow-sm p-5">
+        <!-- Icon & judul -->
+        <div class="text-center mb-4">
+            <div class="rounded-circle d-inline-flex align-items-center justify-content-center mb-3"
+                 style="width:64px; height:64px; background:#e0fffe;">
+                <i class="bi bi-wallet2" style="font-size:1.8rem; color:#00ced1;"></i>
+            </div>
+            <h4 class="fw-bold mb-1">Atur Budget Harian</h4>
+            <p class="text-muted small">Budget ini dipakai untuk menyaring menu yang sesuai kantongmu.</p>
+        </div>
+
+        <!-- Budget Saat Ini -->
+        {% if budget %}
+        <div class="d-flex justify-content-between align-items-center mb-4 p-3 rounded-3"
+             style="background:#f8f9fa;">
+            <span class="text-muted small">Budget saat ini</span>
+            <span class="fw-bold text-dark">Rp {{ budget|intcomma }}</span>
+        </div>
+        {% endif %}
+
+        <form method="POST" id="budgetForm">
+            {% csrf_token %}
+            <label class="form-label fw-semibold small text-dark mb-2">Masukkan Budget Baru</label>
+            <div class="budget-input-wrap mb-3">
+                <span class="prefix">Rp</span>
+                <input type="number"
+                       name="budget_input"
+                       id="budgetInput"
+                       value="{{ budget }}"
+                       placeholder="Contoh: 50000"
+                       min="0"
+                       required>
+            </div>
+
+            <!-- Quick amount buttons -->
+            <div class="d-flex flex-wrap gap-2 mb-4">
+                <span class="text-muted small align-self-center" style="font-size:0.75rem;">Pilih cepat:</span>
+                <button type="button" class="quick-budget-btn" onclick="document.getElementById('budgetInput').value='15000'">Rp 15.000</button>
+                <button type="button" class="quick-budget-btn" onclick="document.getElementById('budgetInput').value='20000'">Rp 20.000</button>
+                <button type="button" class="quick-budget-btn" onclick="document.getElementById('budgetInput').value='25000'">Rp 25.000</button>
+                <button type="button" class="quick-budget-btn" onclick="document.getElementById('budgetInput').value='30000'">Rp 30.000</button>
+                <button type="button" class="quick-budget-btn" onclick="document.getElementById('budgetInput').value='50000'">Rp 50.000</button>
+            </div>
+
+            <!-- Info -->
+            <div class="info-box mb-4">
+                <i class="bi bi-lightbulb me-2"></i>
+                Budget ini digunakan sebagai <strong>filter menu</strong> dan <strong>batas keranjang</strong>.
+                Tidak ada transaksi online — bayar langsung di warung.
+            </div>
+
+            <button type="submit" class="btn btn-simpan w-100 fw-bold">
+                <i class="bi bi-check-circle me-2"></i>Simpan Budget
+            </button>
+        </form>
+
+        <div class="text-center mt-3">
+            <a href="{% url 'budget:index' %}" class="text-muted small text-decoration-none">
+                <i class="bi bi-arrow-left me-1"></i>Kembali ke Dashboard
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

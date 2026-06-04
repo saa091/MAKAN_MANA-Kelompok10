@@ -1,0 +1,357 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Detail Pesanan #{{ pesanan.id }} — MakanMana{% endblock %}
+{% block page_title %}Detail Pesanan{% endblock %}
+{% block page_subtitle %}Informasi lengkap pesanan dari {{ pesanan.mahasiswa.get_full_name|default:pesanan.mahasiswa.username }}{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ===== LAYOUT ===== */
+.detail-wrapper { max-width: 760px; margin: 0 auto; }
+
+/* ===== BREADCRUMB ===== */
+.breadcrumb-custom {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.8rem;
+    color: #9ca3af;
+    margin-bottom: 1.25rem;
+    flex-wrap: wrap;
+}
+.breadcrumb-custom a { color: #6b7280; text-decoration: none; }
+.breadcrumb-custom a:hover { color: #f59e0b; }
+.breadcrumb-custom .current { color: #374151; font-weight: 600; }
+
+/* ===== STATUS BADGE ===== */
+.status-big {
+    font-size: 0.85rem;
+    font-weight: 700;
+    padding: 6px 16px;
+    border-radius: 99px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* ===== TIMER ===== */
+.waktu-tunggu {
+    font-size: 0.75rem;
+    padding: 4px 10px;
+    border-radius: 99px;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.waktu-normal  { background: #d1fae5; color: #065f46; }
+.waktu-sedang  { background: #fef3c7; color: #92400e; }
+.waktu-lama    { background: #fee2e2; color: #991b1b; }
+
+/* ===== ITEM TABLE ===== */
+.item-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid #f3f4f6;
+}
+.item-row:last-child { border-bottom: none; }
+.item-qty {
+    background: #f3f4f6;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 3px 10px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #374151;
+    flex-shrink: 0;
+    min-width: 40px;
+    text-align: center;
+}
+.item-catatan {
+    font-size: 0.76rem;
+    color: #6b7280;
+    font-style: italic;
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    border-radius: 6px;
+    padding: 3px 8px;
+    margin-top: 4px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* ===== AKSI BUTTON ===== */
+.btn-aksi {
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 0.85rem;
+    padding: 9px 20px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: 0.15s;
+    border: none;
+    cursor: pointer;
+}
+.btn-proses  { background: #00ced1; color: white; }
+.btn-proses:hover  { background: #00b5b8; color: white; }
+.btn-siap    { background: #22c55e; color: white; }
+.btn-siap:hover    { background: #16a34a; color: white; }
+.btn-batal   { background: white; color: #ef4444; border: 1.5px solid #fca5a5; }
+.btn-batal:hover   { background: #fef2f2; }
+.btn-back    { background: #f3f4f6; color: #374151; border: 1px solid #e5e7eb; }
+.btn-back:hover    { background: #e5e7eb; }
+
+/* ===== FROM-NOTIF BANNER ===== */
+.from-notif-banner {
+    background: linear-gradient(135deg, #fffbeb, #fef3c7);
+    border: 1.5px solid #fde68a;
+    border-radius: 12px;
+    padding: 11px 16px;
+    margin-bottom: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.83rem;
+}
+
+/* ===== SECTION LABEL ===== */
+.section-label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: #9ca3af;
+    margin-bottom: 8px;
+    margin-top: 4px;
+}
+
+/* ===== DIVIDER ===== */
+.detail-divider {
+    border: none;
+    border-top: 1px solid #f3f4f6;
+    margin: 0;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="detail-wrapper">
+
+    {# Breadcrumb #}
+    <nav class="breadcrumb-custom">
+        <a href="{% url 'budget:dashboard_warung' %}"><i class="bi bi-house me-1"></i>Dashboard</a>
+        <i class="bi bi-chevron-right" style="font-size:0.65rem;"></i>
+        <a href="{% url 'budget:kelola_pesanan' %}">Pesanan Masuk</a>
+        <i class="bi bi-chevron-right" style="font-size:0.65rem;"></i>
+        <span class="current">Pesanan #{{ pesanan.id }}</span>
+    </nav>
+
+    {# Banner: diarahkan dari notifikasi #}
+    <div class="from-notif-banner" id="notif-banner">
+        <span style="font-size:1.2rem;">🔔</span>
+        <div class="flex-grow-1">
+            <span style="font-weight:700; color:#92400e;">Diarahkan dari notifikasi</span>
+            <span class="d-block text-muted" style="font-size:0.75rem;">Kamu melihat detail lengkap pesanan ini</span>
+        </div>
+        <button onclick="document.getElementById('notif-banner').style.display='none'"
+                class="btn-close" style="font-size:0.7rem;"></button>
+    </div>
+
+    {# Card utama #}
+    <div class="card border-0 shadow-sm" style="border-radius:16px; overflow:hidden;">
+
+        {# Header card: ID + status + waktu #}
+        <div class="card-header bg-white border-bottom px-4 pt-4 pb-3">
+            <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                <div>
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <h5 class="fw-bold mb-0">Pesanan #{{ pesanan.id }}</h5>
+                        {% if pesanan.status == 'pending' %}
+                            <span class="status-big" style="background:#fff8e1; color:#b45309;">⏳ Pending</span>
+                        {% elif pesanan.status == 'diproses' %}
+                            <span class="status-big" style="background:#e0f7fa; color:#0369a1;">🔄 Diproses</span>
+                        {% elif pesanan.status == 'siap' %}
+                            <span class="status-big" style="background:#e8f5e9; color:#166534;">✅ Siap Diambil</span>
+                        {% elif pesanan.status == 'selesai' %}
+                            <span class="status-big" style="background:#f3f4f6; color:#4b5563;">☑️ Selesai</span>
+                        {% elif pesanan.status == 'dibatalkan' %}
+                            <span class="status-big" style="background:#fee2e2; color:#991b1b;">❌ Dibatalkan</span>
+                        {% endif %}
+
+                        {% if pesanan.status in 'pending,diproses' %}
+                        <span class="waktu-tunggu
+                            {% if pesanan.menit_tunggu < 10 %}waktu-normal
+                            {% elif pesanan.menit_tunggu < 20 %}waktu-sedang
+                            {% else %}waktu-lama{% endif %}">
+                            ⏱
+                            {% if pesanan.menit_tunggu == 0 %}Baru masuk
+                            {% elif pesanan.menit_tunggu < 60 %}{{ pesanan.menit_tunggu }} menit
+                            {% else %}{% widthratio pesanan.menit_tunggu 60 1 %} jam{% endif %}
+                            {% if pesanan.menit_tunggu >= 20 %} — Segera!{% endif %}
+                        </span>
+                        {% endif %}
+                    </div>
+                    <div class="text-muted small mt-1">
+                        <i class="bi bi-clock me-1"></i>Dipesan {{ pesanan.waktu_pesan|date:"d M Y, H:i" }}
+                        {% if pesanan.waktu_selesai %}
+                        &nbsp;·&nbsp; <i class="bi bi-check2-circle me-1"></i>Selesai {{ pesanan.waktu_selesai|date:"d M Y, H:i" }}
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="text-end">
+                    <div class="fw-bold" style="font-size:1.3rem; color:#1f2937;">Rp {{ pesanan.total_harga|intcomma }}</div>
+                    <small class="text-muted">Total pesanan</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="card-body px-4 py-0">
+
+            {# Info Pemesan #}
+            <div class="py-4">
+                <div class="section-label"><i class="bi bi-person me-1"></i>Informasi Pemesan</div>
+                <div class="d-flex align-items-center gap-3">
+                    <div style="width:46px; height:46px; border-radius:12px; background:#f59e0b; display:flex; align-items:center; justify-content:center; color:white; font-weight:700; font-size:1.1rem; flex-shrink:0;">
+                        {{ pesanan.mahasiswa.username|slice:":1"|upper }}
+                    </div>
+                    <div>
+                        <div class="fw-bold" style="font-size:0.95rem;">
+                            {{ pesanan.mahasiswa.get_full_name|default:pesanan.mahasiswa.username }}
+                        </div>
+                        <div class="text-muted small">@{{ pesanan.mahasiswa.username }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <hr class="detail-divider">
+
+            {# Daftar Item #}
+            <div class="py-4">
+                <div class="section-label"><i class="bi bi-bag me-1"></i>Item yang Dipesan</div>
+                {% for item in items %}
+                <div class="item-row">
+                    <span class="item-qty">{{ item.jumlah }}x</span>
+                    <div class="flex-grow-1">
+                        <div class="fw-semibold" style="font-size:0.92rem;">{{ item.menu.nama_makanan }}</div>
+                        <div class="text-muted small">Rp {{ item.harga_saat_pesan|intcomma }} / porsi
+                            &nbsp;·&nbsp; Subtotal: <strong>Rp {% widthratio item.harga_saat_pesan 1 item.jumlah %}</strong>
+                        </div>
+                        {% if item.catatan_item %}
+                        <span class="item-catatan">
+                            <i class="bi bi-chat-left-text"></i>{{ item.catatan_item }}
+                        </span>
+                        {% endif %}
+                    </div>
+                    <div class="text-end flex-shrink-0">
+                        <div class="fw-bold small">Rp {{ item.harga_saat_pesan|intcomma }}</div>
+                        <div class="text-muted" style="font-size:0.68rem;">per porsi</div>
+                    </div>
+                </div>
+                {% endfor %}
+
+                {# Catatan pesanan umum #}
+                {% if pesanan.catatan %}
+                <div class="mt-3 p-3 rounded-3" style="background:#fffbeb; border:1px solid #fde68a;">
+                    <div class="section-label mb-1"><i class="bi bi-sticky me-1"></i>Catatan Pesanan</div>
+                    <p class="mb-0 small fst-italic" style="color:#92400e;">{{ pesanan.catatan }}</p>
+                </div>
+                {% endif %}
+
+                {# Total #}
+                <div class="d-flex justify-content-between align-items-center mt-3 pt-3" style="border-top:1.5px dashed #e5e7eb;">
+                    <span class="fw-bold" style="font-size:0.9rem;">Total Pembayaran</span>
+                    <span class="fw-bold" style="font-size:1.1rem; color:#f59e0b;">Rp {{ pesanan.total_harga|intcomma }}</span>
+                </div>
+            </div>
+
+            <hr class="detail-divider">
+
+            {# Aksi Update Status #}
+            {% if pesanan.status not in 'selesai,dibatalkan' %}
+            <div class="py-4">
+                <div class="section-label"><i class="bi bi-arrow-repeat me-1"></i>Update Status Pesanan</div>
+                <div class="d-flex gap-2 flex-wrap">
+
+                    {% if pesanan.status == 'pending' %}
+                    <form action="{% url 'budget:update_status_pesanan' pesanan.id %}" method="POST">
+                        {% csrf_token %}
+                        <input type="hidden" name="status" value="diproses">
+                        <input type="hidden" name="from_detail" value="1">
+                        <button type="submit" class="btn-aksi btn-proses">
+                            <i class="bi bi-play-fill"></i>Mulai Proses
+                        </button>
+                    </form>
+                    <form action="{% url 'budget:update_status_pesanan' pesanan.id %}" method="POST">
+                        {% csrf_token %}
+                        <input type="hidden" name="status" value="dibatalkan">
+                        <input type="hidden" name="from_detail" value="1">
+                        <button type="submit" class="btn-aksi btn-batal"
+                                onclick="return confirm('Yakin batalkan Pesanan #{{ pesanan.id }}?')">
+                            <i class="bi bi-x-circle"></i>Batalkan
+                        </button>
+                    </form>
+
+                    {% elif pesanan.status == 'diproses' %}
+                    <form action="{% url 'budget:update_status_pesanan' pesanan.id %}" method="POST">
+                        {% csrf_token %}
+                        <input type="hidden" name="status" value="siap">
+                        <input type="hidden" name="from_detail" value="1">
+                        <button type="submit" class="btn-aksi btn-siap">
+                            <i class="bi bi-check2-circle"></i>Tandai Siap Diambil
+                        </button>
+                    </form>
+
+                    {% elif pesanan.status == 'siap' %}
+                    <div class="p-3 rounded-3 d-flex align-items-center gap-3" style="background:#f0fdf4; border:1px solid #bbf7d0;">
+                        <i class="bi bi-hourglass-split text-success fs-5"></i>
+                        <div>
+                            <div class="fw-semibold text-success small">Menunggu mahasiswa mengambil</div>
+                            <div class="text-muted" style="font-size:0.74rem;">Mahasiswa akan mengkonfirmasi setelah mengambil pesanan</div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                </div>
+            </div>
+            {% else %}
+            <div class="py-4">
+                {% if pesanan.status == 'selesai' %}
+                <div class="p-3 rounded-3 d-flex align-items-center gap-3" style="background:#f0fdf4; border:1px solid #bbf7d0;">
+                    <i class="bi bi-check-circle-fill text-success fs-5"></i>
+                    <div>
+                        <div class="fw-semibold text-success small">Pesanan Selesai</div>
+                        <div class="text-muted" style="font-size:0.74rem;">Mahasiswa sudah mengambil pesanan ini</div>
+                    </div>
+                </div>
+                {% elif pesanan.status == 'dibatalkan' %}
+                <div class="p-3 rounded-3 d-flex align-items-center gap-3" style="background:#fef2f2; border:1px solid #fecaca;">
+                    <i class="bi bi-x-circle-fill text-danger fs-5"></i>
+                    <div>
+                        <div class="fw-semibold text-danger small">Pesanan Dibatalkan</div>
+                        <div class="text-muted" style="font-size:0.74rem;">Pesanan ini sudah dibatalkan</div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+
+        </div>
+
+        {# Footer: tombol kembali #}
+        <div class="card-footer bg-white border-top px-4 py-3 d-flex justify-content-between align-items-center" style="border-color:#f3f4f6 !important;">
+            <a href="{% url 'budget:kelola_pesanan' %}" class="btn-aksi btn-back" style="text-decoration:none;">
+                <i class="bi bi-arrow-left"></i>Semua Pesanan
+            </a>
+            <small class="text-muted" style="font-size:0.72rem;">
+                <i class="bi bi-shield-check me-1 text-success"></i>Pesanan terverifikasi sistem
+            </small>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

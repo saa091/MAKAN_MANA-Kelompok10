@@ -1,0 +1,246 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Kelola Menu — MakanMana{% endblock %}
+{% block page_title %}Kelola Katalog Menu{% endblock %}
+{% block page_subtitle %}Tambah, edit, hapus menu & update stok{% endblock %}
+
+{% block extra_css %}
+<style>
+.menu-row { transition: background 0.15s; }
+.menu-row:hover { background: #f8fafc !important; }
+.menu-row.aktif { background: #f0fdff !important; border-left: 3px solid #00ced1; }
+.stok-toggle { cursor: pointer; width: 2.5em; height: 1.3em; }
+.review-panel { border-top: 3px solid #00ced1; border-radius: 0 0 14px 14px !important; }
+.star-filled { color: #f59e0b; }
+.star-empty { color: #d1d5db; }
+.filter-chip { font-size: 0.78rem; padding: 4px 12px; border-radius: 99px; cursor: pointer; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ── HEADER + FILTER KATEGORI ── -->
+<div class="card border-0 shadow-sm mb-0" style="border-radius:16px 16px 0 0;">
+    <div class="card-header bg-white border-0 pt-4 px-4 pb-3">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+            <div>
+                <h6 class="fw-bold mb-1">Daftar Menu — {{ warung.nama_kantin }}</h6>
+                <!-- Filter kategori -->
+                <div class="d-flex gap-1 flex-wrap mt-2">
+                    <a href="?{% if request.GET.review_menu %}review_menu={{ request.GET.review_menu }}&{% endif %}"
+                       class="btn filter-chip {% if not request.GET.kategori %}btn-dark{% else %}btn-outline-secondary{% endif %}">
+                        Semua
+                    </a>
+                    {% for val, label in kategori_choices %}
+                    <a href="?kategori={{ val }}{% if request.GET.review_menu %}&review_menu={{ request.GET.review_menu }}{% endif %}"
+                       class="btn filter-chip {% if request.GET.kategori == val %}btn-dark{% else %}btn-outline-secondary{% endif %}">
+                        {{ label }}
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="{% url 'budget:riwayat_warung' %}" class="btn rounded-pill btn-outline-secondary px-3" style="font-size:0.85rem;">
+                    <i class="bi bi-bar-chart-line me-1"></i>Analitik
+                </a>
+                <a href="{% url 'budget:tambah_menu' %}" class="btn rounded-pill text-white px-4" style="background:#00ced1; border:none; font-size:0.85rem;">
+                    <i class="bi bi-plus-lg me-1"></i>Tambah Menu
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table align-middle mb-0">
+                <thead class="bg-light small text-uppercase text-muted" style="font-size:0.72rem; letter-spacing:0.5px;">
+                    <tr>
+                        <th class="ps-4" style="width:38%;">Menu</th>
+                        <th>Kategori</th>
+                        <th>Harga</th>
+                        <th>Label</th>
+                        <th>Terjual</th>
+                        <th class="text-center">Stok</th>
+                        <th class="text-center pe-4">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in menus %}
+                    {% if not request.GET.kategori or item.kategori == request.GET.kategori %}
+                    <tr class="menu-row {% if menu_aktif and menu_aktif.id == item.id %}aktif{% endif %}">
+
+                        <!-- Nama & Gambar -->
+                        <td class="ps-4 py-3">
+                            <div class="d-flex align-items-center">
+                                {% if item.gambar %}
+                                <img src="{{ item.gambar.url }}" class="rounded-3 me-3 flex-shrink-0" width="48" height="48" style="object-fit:cover;">
+                                {% else %}
+                                <div class="rounded-3 me-3 bg-light d-flex align-items-center justify-content-center flex-shrink-0" style="width:48px;height:48px;">
+                                    <i class="bi bi-image text-muted"></i>
+                                </div>
+                                {% endif %}
+                                <div>
+                                    <div class="fw-semibold small">{{ item.nama_makanan }}</div>
+                                    <small class="text-muted">{{ item.deskripsi|truncatechars:38 }}</small>
+                                </div>
+                            </div>
+                        </td>
+
+                        <!-- Kategori -->
+                        <td>
+                            <span class="badge rounded-pill bg-light text-muted border" style="font-size:0.7rem;">
+                                {% if item.kategori == 'makanan' %}🍽️
+                                {% elif item.kategori == 'minuman' %}🥤
+                                {% elif item.kategori == 'snack' %}🍿
+                                {% elif item.kategori == 'paket' %}📦
+                                {% else %}🔖{% endif %}
+                                {{ item.get_kategori_display }}
+                            </span>
+                        </td>
+
+                        <!-- Harga -->
+                        <td><span class="fw-semibold small">Rp {{ item.harga|intcomma }}</span></td>
+
+                        <!-- Label -->
+                        <td>
+                            {% if item.label %}
+                            <span class="badge bg-info-subtle text-info rounded-pill" style="font-size:0.7rem;">{{ item.label }}</span>
+                            {% else %}<span class="text-muted small">—</span>{% endif %}
+                        </td>
+
+                        <!-- Terjual -->
+                        <td><span class="small text-muted">{{ item.jumlah_terjual }}x</span></td>
+
+                        <!-- Toggle Stok -->
+                        <td class="text-center">
+                            <div class="form-check form-switch d-flex justify-content-center">
+                                <input class="form-check-input stok-toggle" type="checkbox"
+                                    data-id="{{ item.id }}"
+                                    {% if item.stok_tersedia %}checked{% endif %}>
+                            </div>
+                        </td>
+
+                        <!-- Aksi: Edit · Hapus · Review -->
+                        <td class="text-center pe-4">
+                            <a href="{% url 'budget:edit_menu' item.id %}" class="btn btn-sm btn-outline-primary rounded-3 me-1" title="Edit">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <a href="{% url 'budget:hapus_menu' item.id %}"
+                               class="btn btn-sm btn-outline-danger rounded-3 me-1"
+                               onclick="return confirm('Hapus menu {{ item.nama_makanan }}?')"
+                               title="Hapus">
+                                <i class="bi bi-trash"></i>
+                            </a>
+                            <a href="?review_menu={{ item.id }}{% if request.GET.kategori %}&kategori={{ request.GET.kategori }}{% endif %}"
+                               class="btn btn-sm rounded-3 {% if menu_aktif and menu_aktif.id == item.id %}btn-warning{% else %}btn-outline-warning{% endif %}"
+                               title="Lihat Review">
+                                ⭐
+                            </a>
+                        </td>
+                    </tr>
+                    {% endif %}
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center py-5 text-muted">
+                            <i class="bi bi-inbox fs-3 d-block mb-2"></i>
+                            Belum ada menu. Tambahkan menu pertama!
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ── PANEL REVIEW (inline, muncul di bawah tabel) ── -->
+{% if menu_aktif %}
+<div class="card border-0 shadow-sm review-panel mt-0" style="border-radius:0 0 16px 16px;" id="section-review">
+    <div class="card-header bg-white border-0 pt-4 px-4 d-flex justify-content-between align-items-center">
+        <div>
+            <h6 class="fw-bold mb-0">
+                Review untuk: <span style="color:#00ced1;">{{ menu_aktif.nama_makanan }}</span>
+            </h6>
+            <div class="d-flex align-items-center gap-1 mt-1">
+                {% with avg=menu_aktif.avg_rating %}
+                {% for i in "12345" %}
+                    {% if forloop.counter <= avg %}
+                        <span class="star-filled">★</span>
+                    {% else %}
+                        <span class="star-empty">★</span>
+                    {% endif %}
+                {% endfor %}
+                <small class="text-muted ms-1">{{ avg }} / 5 dari {{ reviews_menu|length }} ulasan</small>
+                {% endwith %}
+            </div>
+        </div>
+        <a href="{% url 'budget:manage_menu' %}{% if request.GET.kategori %}?kategori={{ request.GET.kategori }}{% endif %}"
+           class="btn btn-sm btn-outline-secondary rounded-pill">
+            <i class="bi bi-x-lg me-1"></i>Tutup
+        </a>
+    </div>
+
+    <div class="card-body px-4 pb-4">
+        {% if reviews_menu %}
+            {% for review in reviews_menu %}
+            <div class="py-3 {% if not forloop.last %}border-bottom{% endif %}">
+                <div class="d-flex justify-content-between align-items-start mb-1">
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="rounded-circle bg-light d-flex align-items-center justify-content-center" style="width:32px;height:32px;">
+                            <i class="bi bi-person text-muted" style="font-size:0.9rem;"></i>
+                        </div>
+                        <span class="fw-semibold small">@{{ review.mahasiswa.username }}</span>
+                    </div>
+                    <div class="d-flex align-items-center gap-1">
+                        {% for i in "12345" %}
+                            {% if forloop.counter <= review.bintang %}
+                                <span class="star-filled" style="font-size:.85rem;">★</span>
+                            {% else %}
+                                <span class="star-empty" style="font-size:.85rem;">★</span>
+                            {% endif %}
+                        {% endfor %}
+                        <small class="text-muted ms-2">{{ review.waktu_review|timesince }} lalu</small>
+                    </div>
+                </div>
+                <p class="small text-muted mb-0 ms-5">{{ review.komentar }}</p>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="text-center py-4 text-muted">
+                <i class="bi bi-chat-square-text fs-3 d-block mb-2"></i>
+                <p class="small mb-0">Belum ada review untuk menu ini.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Toggle Stok via AJAX
+document.querySelectorAll('.stok-toggle').forEach(function(toggle) {
+    toggle.addEventListener('change', function() {
+        const menuId = this.dataset.id;
+        const checkbox = this;
+        fetch(`/toggle-stok/${menuId}/`, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': '{{ csrf_token }}', 'Content-Type': 'application/json' },
+        })
+        .then(res => res.json())
+        .then(data => console.log('Stok updated:', data))
+        .catch(() => { checkbox.checked = !checkbox.checked; });
+    });
+});
+
+// Auto-scroll ke review panel
+{% if menu_aktif %}
+document.addEventListener('DOMContentLoaded', function() {
+    const el = document.getElementById('section-review');
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
+{% endif %}
+</script>
+{% endblock %}

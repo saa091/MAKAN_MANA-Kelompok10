@@ -1,0 +1,259 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Pesanan Masuk — MakanMana{% endblock %}
+{% block page_title %}Pesanan Masuk{% endblock %}
+{% block page_subtitle %}Kelola & update status pesanan dari mahasiswa{% endblock %}
+
+{% block extra_css %}
+<style>
+.pesanan-card { border-radius: 14px !important; transition: box-shadow 0.2s; }
+.pesanan-card:hover { box-shadow: 0 6px 24px rgba(0,0,0,0.10) !important; }
+.status-pill { font-size: 0.75rem; padding: 4px 12px; border-radius: 99px; font-weight: 600; }
+
+/* Waktu tunggu indicators */
+.waktu-tunggu {
+    font-size: 0.7rem;
+    padding: 2px 8px;
+    border-radius: 99px;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+}
+.waktu-normal  { background: #d1fae5; color: #065f46; }
+.waktu-sedang  { background: #fef3c7; color: #92400e; }
+.waktu-lama    { background: #fee2e2; color: #991b1b; }
+
+.filter-tab { font-size: 0.82rem; padding: 6px 16px; border-radius: 99px; font-weight: 600; transition: 0.15s; }
+
+/* Highlight animation dari notifikasi */
+@keyframes highlightPulse {
+    0%   { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.5), 0 6px 24px rgba(0,0,0,0.08); background: #fef9c3; }
+    40%  { box-shadow: 0 0 0 8px rgba(245, 158, 11, 0.15), 0 6px 24px rgba(0,0,0,0.08); }
+    70%  { box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.08), 0 6px 24px rgba(0,0,0,0.08); }
+    100% { box-shadow: 0 6px 24px rgba(0,0,0,0.08); background: white; }
+}
+.pesanan-card.highlighted {
+    animation: highlightPulse 2.5s ease forwards;
+}
+
+/* Notif banner */
+.notif-banner {
+    background: linear-gradient(135deg, #fffbeb, #fef3c7);
+    border: 1.5px solid #fde68a;
+    border-radius: 12px;
+    padding: 12px 18px;
+    margin-bottom: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 0.85rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+
+{# Banner dari notifikasi #}
+{% if highlight_id %}
+<div class="notif-banner" id="notif-banner">
+    <span style="font-size:1.3rem;">🔔</span>
+    <div>
+        <strong>Diarahkan dari notifikasi</strong>
+        <span class="text-muted ms-1">— Pesanan #{{ highlight_id }} disorot di bawah</span>
+    </div>
+    <button onclick="document.getElementById('notif-banner').remove()"
+            class="btn-close btn-close-sm ms-auto" style="font-size:0.7rem;"></button>
+</div>
+{% endif %}
+
+<!-- Filter Tab -->
+<div class="d-flex gap-2 mb-4 flex-wrap align-items-center">
+    <a href="?status=" class="btn filter-tab {% if not request.GET.status %}btn-dark{% else %}btn-outline-secondary{% endif %}">
+        Semua <span class="badge {% if not request.GET.status %}bg-light text-dark{% else %}bg-secondary{% endif %} ms-1">{{ pesanan_masuk.count }}</span>
+    </a>
+    <a href="?status=pending{% if highlight_id %}&highlight={{ highlight_id }}{% endif %}"
+       class="btn filter-tab {% if request.GET.status == 'pending' %}btn-warning text-dark{% else %}btn-outline-warning{% endif %}">
+        ⏳ Pending
+    </a>
+    <a href="?status=diproses{% if highlight_id %}&highlight={{ highlight_id }}{% endif %}"
+       class="btn filter-tab {% if request.GET.status == 'diproses' %}btn-info text-white{% else %}btn-outline-info{% endif %}">
+        🔄 Diproses
+    </a>
+    <a href="?status=siap{% if highlight_id %}&highlight={{ highlight_id }}{% endif %}"
+       class="btn filter-tab {% if request.GET.status == 'siap' %}btn-success{% else %}btn-outline-success{% endif %}">
+        ✅ Siap Diambil
+    </a>
+    <a href="?status=selesai{% if highlight_id %}&highlight={{ highlight_id }}{% endif %}"
+       class="btn filter-tab {% if request.GET.status == 'selesai' %}btn-secondary{% else %}btn-outline-secondary{% endif %}">
+        ☑️ Selesai
+    </a>
+</div>
+
+<div class="row g-3" id="pesanan-list">
+    {% for p in pesanan_masuk %}
+    {% if not request.GET.status or p.status == request.GET.status %}
+    <div class="col-12" id="pesanan-wrap-{{ p.id }}">
+        <div class="card border-0 shadow-sm pesanan-card
+            {% if p.status == 'pending' %}border-start border-warning border-3
+            {% elif p.status == 'diproses' %}border-start border-info border-3
+            {% elif p.status == 'siap' %}border-start border-success border-3
+            {% endif %}"
+            id="pesanan-card-{{ p.id }}"
+            style="border-radius:14px;">
+            <div class="card-body px-4 py-3">
+                <div class="row align-items-center g-2">
+
+                    <!-- Icon + Info Pesanan -->
+                    <div class="col-md-4">
+                        <div class="d-flex align-items-start gap-3">
+                            <div class="rounded-3 p-2 flex-shrink-0 mt-1"
+                                 style="background:{% if p.status == 'pending' %}#fff8e1{% elif p.status == 'diproses' %}#e0f7fa{% elif p.status == 'siap' %}#e8f5e9{% else %}#f5f5f5{% endif %};">
+                                <i class="bi bi-receipt fs-5
+                                   {% if p.status == 'pending' %}text-warning
+                                   {% elif p.status == 'diproses' %}text-info
+                                   {% elif p.status == 'siap' %}text-success
+                                   {% else %}text-muted{% endif %}"></i>
+                            </div>
+                            <div>
+                                <h6 class="fw-bold mb-0">Pesanan #{{ p.id }}</h6>
+                                <span class="text-muted small d-block">
+                                    <i class="bi bi-person me-1"></i>{{ p.mahasiswa.get_full_name|default:p.mahasiswa.username }}
+                                </span>
+                                <div class="d-flex align-items-center gap-2 mt-1 flex-wrap">
+                                    <span class="text-muted small">
+                                        <i class="bi bi-clock me-1"></i>{{ p.waktu_pesan|date:"d M, H:i" }}
+                                    </span>
+
+                                    {% if p.status == 'pending' or p.status == 'diproses' %}
+                                    {% with menit=p.menit_tunggu %}
+                                    <span class="waktu-tunggu
+                                        {% if menit < 10 %}waktu-normal
+                                        {% elif menit < 20 %}waktu-sedang
+                                        {% else %}waktu-lama{% endif %}">
+                                        ⏱
+                                        {% if menit == 0 %}Baru masuk
+                                        {% elif menit < 60 %}{{ menit }} menit
+                                        {% else %}{% widthratio menit 60 1 %} jam
+                                        {% endif %}
+                                        {% if menit >= 20 %} — Segera!{% endif %}
+                                    </span>
+                                    {% endwith %}
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Detail Item + Catatan -->
+                    <div class="col-md-4">
+                        {% for item in p.items.all %}
+                        <div class="d-flex align-items-start gap-2 small mb-1">
+                            <span class="badge bg-light text-dark border flex-shrink-0">{{ item.jumlah }}x</span>
+                            <div>
+                                <span class="fw-semibold">{{ item.menu.nama_makanan }}</span>
+                                {% if item.catatan_item %}
+                                <div class="text-muted fst-italic" style="font-size:0.76rem;">
+                                    <i class="bi bi-chat-left-text me-1"></i>"{{ item.catatan_item }}"
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                        {% if p.catatan %}
+                        <div class="mt-1 small text-muted fst-italic">
+                            <i class="bi bi-sticky me-1"></i>Catatan: {{ p.catatan }}
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Harga + Status Badge -->
+                    <div class="col-md-2 text-center">
+                        <div class="fw-bold">Rp {{ p.total_harga|intcomma }}</div>
+                        <div class="mt-1">
+                            {% if p.status == 'pending' %}
+                                <span class="status-pill" style="background:#fff8e1; color:#b45309;">⏳ Pending</span>
+                            {% elif p.status == 'diproses' %}
+                                <span class="status-pill" style="background:#e0f7fa; color:#0369a1;">🔄 Diproses</span>
+                            {% elif p.status == 'siap' %}
+                                <span class="status-pill" style="background:#e8f5e9; color:#166534;">✅ Siap</span>
+                            {% elif p.status == 'selesai' %}
+                                <span class="status-pill" style="background:#f3f4f6; color:#6b7280;">☑️ Selesai</span>
+                            {% elif p.status == 'dibatalkan' %}
+                                <span class="status-pill" style="background:#fee2e2; color:#991b1b;">❌ Dibatalkan</span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Tombol Aksi Dinamis -->
+                    <div class="col-md-2 text-end">
+                        {% if p.status == 'pending' %}
+                        <form action="{% url 'budget:update_status_pesanan' p.id %}" method="POST">
+                            {% csrf_token %}
+                            <input type="hidden" name="status" value="diproses">
+                            <button class="btn btn-sm rounded-pill fw-bold w-100 text-white"
+                                    style="background:#00ced1; border:none;">
+                                <i class="bi bi-play-fill me-1"></i>Proses
+                            </button>
+                        </form>
+                        <form action="{% url 'budget:update_status_pesanan' p.id %}" method="POST" class="mt-1">
+                            {% csrf_token %}
+                            <input type="hidden" name="status" value="dibatalkan">
+                            <button class="btn btn-sm btn-outline-danger rounded-pill fw-bold w-100"
+                                    onclick="return confirm('Yakin batalkan pesanan #{{ p.id }}?')">
+                                <i class="bi bi-x-circle me-1"></i>Batalkan
+                            </button>
+                        </form>
+                        {% elif p.status == 'diproses' %}
+                        <form action="{% url 'budget:update_status_pesanan' p.id %}" method="POST">
+                            {% csrf_token %}
+                            <input type="hidden" name="status" value="siap">
+                            <button class="btn btn-sm btn-success rounded-pill fw-bold w-100">
+                                <i class="bi bi-check2-circle me-1"></i>Siap Diambil
+                            </button>
+                        </form>
+                        {% elif p.status == 'siap' %}
+                        <div class="text-muted small text-center">
+                            <i class="bi bi-hourglass-split d-block mb-1 text-success"></i>
+                            Menunggu mahasiswa
+                        </div>
+                        {% else %}
+                        <span class="text-muted small">—</span>
+                        {% endif %}
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    {% empty %}
+    <div class="col-12 text-center py-5">
+        <i class="bi bi-inbox text-muted" style="font-size:4rem;"></i>
+        <h5 class="text-muted mt-3">Belum ada pesanan masuk.</h5>
+        <p class="text-muted small">Pesanan dari mahasiswa akan muncul di sini.</p>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const highlightId = "{{ highlight_id }}";
+    if (!highlightId) return;
+
+    const card = document.getElementById('pesanan-card-' + highlightId);
+    if (!card) return;
+
+    // Scroll to card smoothly
+    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+    // Trigger highlight animation after scroll settles
+    setTimeout(() => {
+        card.classList.add('highlighted');
+    }, 500);
+});
+</script>
+{% endblock %}
